@@ -1,0 +1,49 @@
+.layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface-bright);
+  min-width: 0;
+}
+
+.header {
+  padding: 2rem 4rem 1.5rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+@media (max-width: 767px) {
+  .header {
+    padding: 1rem 1.25rem;
+  }
+}
+
+/* Hamburger — always visible */
+.menuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--on-surface-variant);
+  padding: 0.25rem;
+  border-radius: 0.5rem;
+  transition: background 0.15s;
+}
+
+.menuBtn:hover {
+  background: var(--surface-container-high);
+}
+
+.tabBarWrap {
+  flex: 1;
+  min-width: 0;
+}

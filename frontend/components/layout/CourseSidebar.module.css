@@ -1,0 +1,234 @@
+.overlay {
+  display: none;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 20rem;
+  flex-shrink: 0;
+  background: var(--surface-container-low);
+  border-right: 1px solid color-mix(in srgb, var(--outline-variant) 30%, transparent);
+  padding: 3rem 0;
+  transition: width 0.3s ease, padding 0.3s ease;
+  overflow: hidden;
+}
+
+/* Desktop: collapse sidebar when closed */
+@media (min-width: 768px) {
+  .sidebarClosed {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    border-right: none;
+  }
+}
+
+/* Mobile: slide-in drawer */
+@media (max-width: 767px) {
+  .overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 30;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .overlayVisible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    padding-top: 1.5rem;
+    width: min(20rem, 85vw);
+  }
+
+  .sidebarOpen {
+    transform: translateX(0);
+  }
+
+  .closeBtn {
+    display: flex;
+  }
+}
+
+@media (min-width: 768px) {
+  .closeBtn {
+    display: none;
+  }
+}
+
+.closeBtn {
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 1.5rem 0.5rem;
+  display: none;
+}
+
+.titleBlock {
+  padding: 0 2rem 2rem;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.75rem;
+  padding: 0.25rem 0;
+  transition: opacity 0.15s;
+}
+
+.backBtn:hover {
+  opacity: 0.7;
+}
+
+.title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  color: var(--on-surface);
+}
+
+.sectionLabel {
+  padding: 0 2rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--on-surface);
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1.5rem;
+  scrollbar-width: none;
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
+}
+
+.selectAll {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--primary);
+  font-weight: 700;
+  padding: 0 0.5rem 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 30%, transparent);
+}
+
+.selectAllInner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.chapter {
+  margin-bottom: 1.5rem;
+}
+
+.chapterRow,
+.noteRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  color: var(--on-surface-variant);
+  transition: background 0.15s;
+}
+
+.chapterRow:hover,
+.noteRow:hover {
+  background: var(--surface-variant);
+}
+
+.rowLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.checkBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--on-surface-variant);
+  transition: color 0.15s;
+}
+
+.checkBtn:hover {
+  color: var(--primary);
+}
+
+.rowLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chapterTitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.noteTitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.noteList {
+  margin-top: 0.75rem;
+  margin-left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--outline-variant) 20%, transparent);
+  margin: 1.5rem 0;
+}
+
+.addButton {
+  margin: 1rem 1.5rem 0;
+  width: calc(100% - 3rem);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  transition: background 0.15s;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.addButton:hover {
+  background: var(--primary-dim);
+}

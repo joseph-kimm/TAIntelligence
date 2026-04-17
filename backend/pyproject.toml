@@ -1,0 +1,33 @@
+[project]
+name = "T(AI) backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    # Web framework + ASGI server
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+
+    # Async PostgreSQL driver used by the app at runtime
+    "asyncpg>=0.30",
+
+    # Config — reads .env files and validates env vars as typed fields
+    "pydantic-settings>=2.6",
+
+    # Loads .env into the environment before pydantic-settings reads it
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "httpx>=0.28",   # async HTTP client for testing FastAPI routes
+    "ruff>=0.8",     # linter + formatter
+]
+
+# We run uvicorn directly from inside backend/ so Python finds the local folders
+# (core/, db/, routers/ etc.) automatically via the working directory.
+# No packages need to be installed — this section just stops setuptools from
+# trying to auto-discover them and erroring out.
+[tool.setuptools]
+packages = []

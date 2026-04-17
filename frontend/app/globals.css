@@ -1,0 +1,63 @@
+:root {
+  --primary: #41683f;
+  --primary-dim: #355c34;
+  --primary-container: #c1eeba;
+  --on-primary: #eaffe2;
+  --on-primary-container: #345a32;
+
+  --secondary: #536350;
+  --secondary-container: #d5e8cf;
+  --on-secondary-container: #465643;
+
+  --background: #f8faf2;
+  --surface: #f8faf2;
+  --surface-bright: #f8faf2;
+  --surface-dim: #d5dccf;
+  --surface-variant: #dee5d8;
+  --surface-container-lowest: #ffffff;
+  --surface-container-low: #f1f5eb;
+  --surface-container: #ebf0e5;
+  --surface-container-high: #e4eade;
+  --surface-container-highest: #dee5d8;
+
+  --on-background: #2d342b;
+  --on-surface: #2d342b;
+  --on-surface-variant: #5a6157;
+
+  --outline: #767d72;
+  --outline-variant: #adb4a8;
+
+  --error: #a73b21;
+  --on-error: #fff7f6;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
+}

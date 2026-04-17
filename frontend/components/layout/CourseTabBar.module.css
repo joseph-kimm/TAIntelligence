@@ -1,0 +1,31 @@
+.tabBar {
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 20%, transparent);
+}
+
+.tab {
+  padding: 0.625rem 1.25rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+@media (max-width: 400px) {
+  .tab {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+  }
+}
+
+.tab:hover { color: var(--primary); }
+
+.tabActive {
+  color: var(--primary);
+  font-weight: 700;
+  border-bottom-color: var(--primary);
+}
