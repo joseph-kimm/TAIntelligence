@@ -1,5 +1,5 @@
 [project]
-name = "T(AI) backend"
+name = "tai-backend"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
@@ -15,6 +15,12 @@ dependencies = [
 
     # Loads .env into the environment before pydantic-settings reads it
     "python-dotenv>=1.0",
+
+    # S3-compatible client for Cloudflare R2 uploads
+    "boto3>=1.35",
+
+    # Required by FastAPI to parse multipart/form-data (file uploads)
+    "python-multipart>=0.0.12",
 ]
 
 [project.optional-dependencies]

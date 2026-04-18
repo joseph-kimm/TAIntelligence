@@ -212,6 +212,131 @@
   margin: 1.5rem 0;
 }
 
+/* Inline rename input */
+.renameInput {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--on-surface-variant);
+  outline: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--on-surface);
+  padding: 0 0 1px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* MoreVertical menu button */
+.menuWrapper {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.moreBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 0.25rem;
+  color: var(--on-surface-variant);
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.chapterRow:hover .moreBtn,
+.noteRow:hover .moreBtn {
+  opacity: 1;
+}
+
+.moreBtn:hover {
+  background: var(--surface-variant);
+}
+
+/* Dropdown */
+.dropdown {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  background: var(--surface-container-high);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14), 0 1px 4px rgba(0, 0, 0, 0.08);
+  min-width: 9rem;
+  overflow: hidden;
+  z-index: 50;
+}
+
+.dropdownItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--on-surface);
+  transition: background 0.12s;
+}
+
+.dropdownItem:hover {
+  background: var(--surface-variant);
+}
+
+.dropdownItemDanger {
+  color: var(--error, #b3261e);
+}
+
+.dropdownItemDanger:hover {
+  background: color-mix(in srgb, var(--error, #b3261e) 10%, transparent);
+}
+
+.confirmRow {
+  padding: 0.625rem 0.875rem;
+}
+
+.confirmLabel {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--on-surface);
+  margin-bottom: 0.5rem;
+}
+
+.confirmBtns {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.confirmYes {
+  flex: 1;
+  padding: 0.3rem 0;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--error, #b3261e);
+  color: #fff;
+  transition: opacity 0.15s;
+}
+
+.confirmYes:hover {
+  opacity: 0.85;
+}
+
+.confirmNo {
+  flex: 1;
+  padding: 0.3rem 0;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--surface-variant);
+  color: var(--on-surface-variant);
+  transition: background 0.15s;
+}
+
+.confirmNo:hover {
+  background: var(--outline-variant);
+}
+
 .addButton {
   margin: 1rem 1.5rem 0;
   width: calc(100% - 3rem);

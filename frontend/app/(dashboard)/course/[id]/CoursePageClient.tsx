@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useLayoutEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import CourseSidebar from "@/components/layout/CourseSidebar";
 import CourseTabBar from "@/components/layout/CourseTabBar";
 import ChatTab from "@/components/course/ChatTab";
 import SummarizeTab from "@/components/course/SummarizeTab";
 import TestTab from "@/components/course/TestTab";
-import AddNoteModal from "@/components/modals/AddNoteModal";
+import AddDocumentModal from "@/components/modals/AddDocumentModal";
 import styles from "./page.module.css";
 import type {
   Course,
@@ -45,6 +46,7 @@ export default function CoursePageClient({
   course,
   sections,
 }: CoursePageClientProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<CourseTab>("chat");
   const [messages, setMessages] = useState<Message[]>(PLACEHOLDER_MESSAGES);
   const [showModal, setShowModal] = useState(false);
@@ -117,10 +119,11 @@ export default function CoursePageClient({
       </div>
 
       {showModal && (
-        <AddNoteModal
+        <AddDocumentModal
+          courseId={course.id}
           sections={sections}
           onClose={() => setShowModal(false)}
-          onCreate={() => setShowModal(false)}
+          onSuccess={() => router.refresh()}
         />
       )}
     </>

@@ -15,12 +15,13 @@ export class ApiError extends Error {
 // Generic fetch wrapper — all API calls go through here.
 // cache: 'no-store' ensures we always get fresh data (Next.js 16 default,
 // but explicit is clearer).
-export async function apiFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`${BACKEND_URL}${path}`, { cache: 'no-store' })
+export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(`${BACKEND_URL}${path}`, { cache: 'no-store', ...options })
 
   if (!res.ok) {
     throw new ApiError(res.status, `API error ${res.status} on ${path}`)
   }
 
+  if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
 }

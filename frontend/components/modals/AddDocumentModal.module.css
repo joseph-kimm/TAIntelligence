@@ -187,7 +187,12 @@
   white-space: nowrap;
 }
 
-.uploadBtn:hover { background: var(--surface-variant); }
+.uploadBtn:hover:not(:disabled) { background: var(--surface-variant); }
+
+.uploadBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 /* Footer */
 .footer {
@@ -224,5 +229,82 @@
   transition: filter 0.15s, transform 0.1s;
 }
 
-.createBtn:hover { filter: brightness(1.1); }
-.createBtn:active { transform: scale(0.97); }
+.createBtn:hover:not(:disabled) { filter: brightness(1.1); }
+.createBtn:active:not(:disabled) { transform: scale(0.97); }
+.createBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Drop zone drag-active state */
+.dropZoneActive {
+  background: var(--surface-container-high);
+  border-color: var(--primary);
+}
+
+/* Selected file chip inside the drop zone */
+.fileChip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--surface-container-highest);
+  border-radius: 9999px;
+  padding: 0.375rem 0.75rem;
+  margin-bottom: 1rem;
+  max-width: 100%;
+}
+
+.fileName {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--on-surface);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.removeFileBtn {
+  display: flex;
+  align-items: center;
+  color: var(--on-surface-variant);
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.removeFileBtn:hover { color: var(--on-surface); }
+
+/* URL input section (replaces drop zone when in url mode) */
+.urlWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.urlLabelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.clearBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--on-surface-variant);
+  transition: color 0.15s;
+}
+
+.clearBtn:hover { color: var(--on-surface); }
+
+/* Hidden file input */
+.hiddenInput {
+  display: none;
+}
+
+/* Inline error message */
+.errorText {
+  font-size: 0.875rem;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+}

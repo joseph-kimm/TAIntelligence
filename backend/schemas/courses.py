@@ -1,13 +1,31 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import BaseModel, ConfigDict, Field, field_serializer
 from pydantic.alias_generators import to_camel
+
+
+class CourseIn(BaseModel):
+    """Request body for creating a course."""
+    title: str = Field(..., min_length=1, max_length=200)
+
+
+class RenameIn(BaseModel):
+    """Request body for rename endpoints."""
+    title: str = Field(..., min_length=1, max_length=200)
+
+
+class SectionIn(BaseModel):
+    """Request body for creating a section."""
+    course_id: str
+    title: str = Field(..., min_length=1, max_length=200)
 
 
 class DocumentOut(BaseModel):
     """A single document inside a section."""
     id: str
     title: str
+    source_type: str | None = None
+    source_ref: str | None = None
 
 
 class SectionOut(BaseModel):

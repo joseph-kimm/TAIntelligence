@@ -1,0 +1,83 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal {
+  background: var(--surface-container-lowest);
+  border-radius: 1rem;
+  padding: 1.75rem;
+  width: min(420px, calc(100vw - 2rem));
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1.5px solid var(--outline-variant);
+  border-radius: 0.5rem;
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  border-color: var(--primary);
+}
+
+.input:disabled {
+  opacity: 0.5;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.cancel {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--on-surface-variant);
+  transition: background 0.2s;
+}
+
+.cancel:hover:not(:disabled) {
+  background: var(--surface-container-high);
+}
+
+.create {
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  transition: background 0.2s, opacity 0.2s;
+}
+
+.create:hover:not(:disabled) {
+  background: var(--primary-dim);
+}
+
+.create:disabled {
+  opacity: 0.45;
+}

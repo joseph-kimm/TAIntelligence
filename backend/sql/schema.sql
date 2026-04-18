@@ -32,13 +32,19 @@ CREATE TABLE IF NOT EXISTS sections (
 CREATE INDEX IF NOT EXISTS sections_course_id_idx ON sections(course_id);
 
 -- ─── documents ──────────────────────────────────────────────────────────────
--- A single uploaded file within a section.
--- Storage key (R2 path) and ingestion status added later when upload is built.
+-- A single document within a section. source_type is 'file' or 'website'.
+-- source_ref holds the R2 object key for files, or the URL for websites.
 CREATE TABLE IF NOT EXISTS documents (
-    id         UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    section_id UUID        NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
-    title      TEXT        NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    section_id   UUID        NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+    title        TEXT        NOT NULL,
+    source_type  TEXT        NOT NULL DEFAULT 'file',
+    source_ref   TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS documents_section_id_idx ON documents(section_id);
+
+-- ─── migration (run once if table already exists without these columns) ───────
+-- ALTER TABLE documents ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'file';
+-- ALTER TABLE documents ADD COLUMN IF NOT EXISTS source_ref TEXT;
