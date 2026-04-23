@@ -10,7 +10,8 @@ import {
   X,
 } from "lucide-react";
 import styles from "./AddDocumentModal.module.css";
-import { createSection, createDocument } from "@/lib/actions/courses";
+import { createSection } from "@/lib/actions";
+import { uploadDocument } from "@/lib/uploads";
 import type { Section } from "@/types";
 
 interface AddDocumentModalProps {
@@ -95,7 +96,7 @@ export default function AddDocumentModal({
         formData.append("source_ref", url.trim());
       }
 
-      await createDocument(formData);
+      await uploadDocument(formData);
       onSuccess();
       onClose();
     } catch (err) {

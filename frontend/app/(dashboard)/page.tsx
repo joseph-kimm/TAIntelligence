@@ -1,5 +1,5 @@
 import { Settings } from 'lucide-react'
-import { getCourses } from '@/lib/courses'
+import { getCourses } from '@/lib/queries'
 import CourseGrid from './CourseGrid'
 import styles from './page.module.css'
 

@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,7 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.db import close_pool, create_pool
-from routers import courses
+from routers import chat, courses, documents, sections
+from services.ingestion import create_embed_model
 
 
 @asynccontextmanager
@@ -19,9 +22,16 @@ async def lifespan(app: FastAPI):
     On shutdown: close all connections cleanly.
     """
     app.state.pool = await create_pool(settings.database_url)
+    # Load the embedding model once at startup — runs in a thread since it's CPU-bound
+    app.state.embed_model = await asyncio.to_thread(create_embed_model)
     yield  # server is running — everything above yield is startup, below is shutdown
     await close_pool(app.state.pool)
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(name)s — %(message)s",
+)
 
 app = FastAPI(title="T(AI) API", lifespan=lifespan)
 
@@ -38,6 +48,9 @@ app.add_middleware(
 # Register routers — each router groups related endpoints together.
 # The /api prefix is added here so all endpoints live under /api/...
 app.include_router(courses.router, prefix="/api")
+app.include_router(sections.router, prefix="/api")
+app.include_router(documents.router, prefix="/api")
+app.include_router(chat.router, prefix="/api")
 
 
 @app.get("/health")

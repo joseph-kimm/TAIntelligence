@@ -1,5 +1,5 @@
 import { apiFetch, ApiError } from '@/lib/api'
-import type { Course, Section } from '@/types'
+import type { Chat, Course, Section } from '@/types'
 
 // Returns all courses ordered by most recently updated.
 export async function getCourses(): Promise<Course[]> {
@@ -7,7 +7,7 @@ export async function getCourses(): Promise<Course[]> {
 }
 
 // Returns a single course, or null if it doesn't exist (404).
-// Any other error (500, network failure, etc.) is re-thrown.
+// Any other error (500, network failure, etc.) is re-throwlen.
 export async function getCourse(id: string): Promise<Course | null> {
   try {
     return await apiFetch<Course>(`/api/courses/${id}`)
@@ -20,4 +20,9 @@ export async function getCourse(id: string): Promise<Course | null> {
 // Returns all sections for a course, each with documents nested inside.
 export async function getCourseSections(id: string): Promise<Section[]> {
   return apiFetch<Section[]>(`/api/courses/${id}/sections`)
+}
+
+// Returns all chat sessions for a course, each with their messages.
+export async function getChats(courseId: string): Promise<Chat[]> {
+  return apiFetch<Chat[]>(`/api/courses/${courseId}/chats`)
 }

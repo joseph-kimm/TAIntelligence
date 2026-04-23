@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     # Parsed into a list in main.py where it's passed to CORSMiddleware.
     cors_origins: str = "http://localhost:3000"
 
+    # huggingface read token
+    hf_token: str
+
+    openrouter_key: str
+    openrouter_model: str = "nvidia/nemotron-3-super-120b-a12b:free"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

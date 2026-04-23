@@ -2,7 +2,7 @@
 
 import { useRef, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { createCourse } from '@/lib/actions/courses'
+import { createCourse } from '@/lib/actions'
 import styles from './CreateCourseModal.module.css'
 
 interface CreateCourseModalProps {

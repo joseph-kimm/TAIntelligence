@@ -19,6 +19,14 @@ export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
+  chunkIds: string[]
+}
+
+export interface Chat {
+  id: string
+  courseId: string
+  createdAt: string
+  messages: Message[]
 }
 
 export interface SummaryHistoryItem {

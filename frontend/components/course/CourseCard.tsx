@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { MoreVertical, Plus } from 'lucide-react'
 import styles from './CourseCard.module.css'
-import { renameCourse, deleteCourse } from '@/lib/actions/courses'
+import { renameCourse, deleteCourse } from '@/lib/actions'
 import type { Course } from '@/types'
 
 interface CourseCardProps {

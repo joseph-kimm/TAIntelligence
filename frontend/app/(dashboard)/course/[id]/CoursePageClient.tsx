@@ -5,27 +5,21 @@ import { useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import CourseSidebar from "@/components/layout/CourseSidebar";
 import CourseTabBar from "@/components/layout/CourseTabBar";
-import ChatTab from "@/components/course/ChatTab";
-import SummarizeTab from "@/components/course/SummarizeTab";
-import TestTab from "@/components/course/TestTab";
+import ChatTab from "@/components/chat/ChatTab";
+import SummarizeTab from "@/components/summarize/SummarizeTab";
+import TestTab from "@/components/test/TestTab";
 import AddDocumentModal from "@/components/modals/AddDocumentModal";
+import { createChat, deleteChat } from "@/lib/actions";
+import { parseSSEStream, toMessage } from "@/lib/streaming";
 import styles from "./page.module.css";
 import type {
+  Chat,
   Course,
   CourseTab,
-  Section,
   Message,
+  Section,
   SummaryHistoryItem,
 } from "@/types";
-
-// Placeholder data kept here until chat/summarize features are connected to the backend
-const PLACEHOLDER_MESSAGES: Message[] = [
-  {
-    id: "m1",
-    role: "assistant",
-    content: "Welcome back! What would you like to focus on today?",
-  },
-];
 
 const PLACEHOLDER_HISTORY: SummaryHistoryItem[] = [
   {
@@ -38,32 +32,201 @@ const PLACEHOLDER_HISTORY: SummaryHistoryItem[] = [
 interface CoursePageClientProps {
   course: Course;
   sections: Section[];
+  initialChats: Chat[];
 }
 
-// All interactive state lives here — tabs, sidebar open/close, modal, messages.
-// This component receives already-fetched data from the Server Component parent.
 export default function CoursePageClient({
   course,
   sections,
+  initialChats,
 }: CoursePageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<CourseTab>("chat");
-  const [messages, setMessages] = useState<Message[]>(PLACEHOLDER_MESSAGES);
+  const [chats, setChats] = useState<Chat[]>(initialChats);
+  const [activeChatId, setActiveChatId] = useState<string | null>(
+    initialChats.at(-1)?.id ?? null,
+  );
+  const [pendingNewChat, setPendingNewChat] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
 
-  // useLayoutEffect runs after the DOM is painted — used here to set the
-  // sidebar's initial open/closed state based on window width without a flash.
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSidebarOpen(window.innerWidth >= 768);
   }, []);
 
-  function handleSend(text: string) {
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now().toString(), role: "user", content: text },
-    ]);
+  async function handleSend(text: string) {
+    let chatId = activeChatId;
+
+    if (!chatId) {
+      const newChat = await createChat(course.id);
+      setChats((prev) => [...prev, { ...newChat, messages: [] }]);
+      setActiveChatId(newChat.id);
+      setPendingNewChat(false);
+      chatId = newChat.id;
+    }
+
+    const tempUserId = `temp-user-${Date.now()}`;
+    const tempAssistantId = `temp-assistant-${Date.now()}`;
+
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              messages: [
+                ...c.messages,
+                { id: tempUserId, role: "user" as const, content: text, chunkIds: [] },
+                { id: tempAssistantId, role: "assistant" as const, content: "", chunkIds: [] },
+              ],
+            }
+          : c,
+      ),
+    );
+
+    const res = await fetch(`/api/chats/${chatId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: text, documentIds: [...selectedDocIds] }),
+    });
+
+    if (!res.ok || !res.body) {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === chatId
+            ? { ...c, messages: c.messages.filter((m) => m.id !== tempUserId && m.id !== tempAssistantId) }
+            : c,
+        ),
+      );
+      return;
+    }
+
+    for await (const event of parseSSEStream(res.body)) {
+      if (event.type === "user_message") {
+        const msg = toMessage(event.message);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? { ...c, messages: c.messages.map((m) => (m.id === tempUserId ? msg : m)) }
+              : c,
+          ),
+        );
+      } else if (event.type === "delta") {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempAssistantId
+                      ? { ...m, content: m.content + event.content }
+                      : m,
+                  ),
+                }
+              : c,
+          ),
+        );
+      } else if (event.type === "done") {
+        const msg = toMessage(event.message);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? { ...c, messages: c.messages.map((m) => (m.id === tempAssistantId ? msg : m)) }
+              : c,
+          ),
+        );
+      }
+    }
+  }
+
+  function handleNewChat() {
+    setActiveChatId(null);
+    setPendingNewChat(true);
+  }
+
+  async function handleDeleteChat(chatId: string) {
+    await deleteChat(chatId);
+    setChats((prev) => {
+      const remaining = prev.filter((c) => c.id !== chatId);
+      setActiveChatId(remaining.at(-1)?.id ?? null);
+      setPendingNewChat(false);
+      return remaining;
+    });
+  }
+
+  async function handleEditMessage(chatId: string, messageId: string, content: string) {
+    const tempUserId = `temp-user-${Date.now()}`;
+    const tempAssistantId = `temp-assistant-${Date.now()}`;
+
+    setChats((prev) =>
+      prev.map((c) => {
+        if (c.id !== chatId) return c;
+        const cutIndex = c.messages.findIndex((m) => m.id === messageId);
+        return {
+          ...c,
+          messages: [
+            ...c.messages.slice(0, cutIndex),
+            { id: tempUserId, role: "user" as const, content, chunkIds: [] },
+            { id: tempAssistantId, role: "assistant" as const, content: "", chunkIds: [] },
+          ],
+        };
+      }),
+    );
+
+    const res = await fetch(`/api/chats/${chatId}/messages/${messageId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, documentIds: [...selectedDocIds] }),
+    });
+
+    if (!res.ok || !res.body) {
+      setChats((prev) =>
+        prev.map((c) =>
+          c.id === chatId
+            ? { ...c, messages: c.messages.filter((m) => m.id !== tempUserId && m.id !== tempAssistantId) }
+            : c,
+        ),
+      );
+      return;
+    }
+
+    for await (const event of parseSSEStream(res.body)) {
+      if (event.type === "user_message") {
+        const msg = toMessage(event.message);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? { ...c, messages: c.messages.map((m) => (m.id === tempUserId ? msg : m)) }
+              : c,
+          ),
+        );
+      } else if (event.type === "delta") {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempAssistantId
+                      ? { ...m, content: m.content + event.content }
+                      : m,
+                  ),
+                }
+              : c,
+          ),
+        );
+      } else if (event.type === "done") {
+        const msg = toMessage(event.message);
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? { ...c, messages: c.messages.map((m) => (m.id === tempAssistantId ? msg : m)) }
+              : c,
+          ),
+        );
+      }
+    }
   }
 
   return (
@@ -72,6 +235,8 @@ export default function CoursePageClient({
         <CourseSidebar
           title={course.title}
           sections={sections}
+          selectedDocIds={selectedDocIds}
+          onSelectionChange={setSelectedDocIds}
           onAddDocument={() => setShowModal(true)}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
@@ -92,7 +257,14 @@ export default function CoursePageClient({
           </div>
 
           {activeTab === "chat" && (
-            <ChatTab messages={messages} onSend={handleSend} />
+            <ChatTab
+              chats={chats}
+              pendingNewChat={pendingNewChat}
+              onSend={handleSend}
+              onNewChat={handleNewChat}
+              onDeleteChat={handleDeleteChat}
+              onEditMessage={handleEditMessage}
+            />
           )}
           {activeTab === "summarize" && (
             <SummarizeTab

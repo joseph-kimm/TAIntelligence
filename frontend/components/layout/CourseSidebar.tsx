@@ -4,12 +4,14 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Square, CheckSquare, Minus, Folder, FileText, MoreVertical, Plus, ChevronLeft, X } from 'lucide-react'
 import styles from './CourseSidebar.module.css'
-import { renameSection, deleteSection, renameDocument, deleteDocument } from '@/lib/actions/courses'
+import { renameSection, deleteSection, renameDocument, deleteDocument } from '@/lib/actions'
 import type { Section } from '@/types'
 
 interface CourseSidebarProps {
   title: string
   sections: Section[]
+  selectedDocIds: Set<string>
+  onSelectionChange: (ids: Set<string>) => void
   onAddDocument: () => void
   isOpen?: boolean
   onClose?: () => void
@@ -17,14 +19,23 @@ interface CourseSidebarProps {
 
 type MenuTarget = { type: 'section' | 'document'; id: string }
 
-export default function CourseSidebar({ title, sections, onAddDocument, isOpen = false, onClose }: CourseSidebarProps) {
+export default function CourseSidebar({
+  title,
+  sections,
+  selectedDocIds,
+  onSelectionChange,
+  onAddDocument,
+  isOpen = false,
+  onClose,
+}: CourseSidebarProps) {
   const router = useRouter()
 
   const allDocumentIds = useMemo(
     () => sections.flatMap((s) => s.documents.map((d) => d.id)),
     [sections]
   )
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const selected = selectedDocIds
+  const setSelected = onSelectionChange
 
   // Menu state
   const [openMenu, setOpenMenu] = useState<MenuTarget | null>(null)
@@ -56,25 +67,21 @@ export default function CourseSidebar({ title, sections, onAddDocument, isOpen =
   }, [renaming])
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(allDocumentIds))
+    onSelectionChange(allSelected ? new Set() : new Set(allDocumentIds))
   }
 
   function toggleDocument(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+    const next = new Set(selected)
+    next.has(id) ? next.delete(id) : next.add(id)
+    onSelectionChange(next)
   }
 
   function toggleSection(section: Section) {
     const ids = section.documents.map((d) => d.id)
     const allChecked = ids.every((id) => selected.has(id))
-    setSelected((prev) => {
-      const next = new Set(prev)
-      allChecked ? ids.forEach((id) => next.delete(id)) : ids.forEach((id) => next.add(id))
-      return next
-    })
+    const next = new Set(selected)
+    allChecked ? ids.forEach((id) => next.delete(id)) : ids.forEach((id) => next.add(id))
+    onSelectionChange(next)
   }
 
   function sectionState(section: Section): 'all' | 'some' | 'none' {
