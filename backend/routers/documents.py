@@ -83,19 +83,24 @@ async def add_document(
     if source_type == "file":
         doc_id = row["id"]
         r2_key = f"documents/{doc_id}"
-        await asyncio.to_thread(upload_to_r2, file_bytes, r2_key, file.content_type)
+
+        # Set source_ref immediately — key is deterministic so we don't need to wait for R2.
         await set_document_source_ref(request.app.state.pool, doc_id, r2_key)
         row["source_ref"] = r2_key
 
-        # Kick off ingestion in the background — the response returns immediately
-        # while the server extracts text, chunks, embeds, and stores the vectors.
+        # R2 upload and ingestion run in parallel in the background.
+        mime_type = file.content_type
+        background_tasks.add_task(
+            asyncio.to_thread, upload_to_r2, file_bytes, r2_key, mime_type
+        )
         background_tasks.add_task(
             ingest_document,
             request.app.state.pool,
             request.app.state.embed_model,
             doc_id,
             file_bytes,
-            file.content_type,
+            mime_type,
+            title.strip(),
         )
 
     return DocumentOut(**row)

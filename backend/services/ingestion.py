@@ -1,6 +1,7 @@
 import asyncio
 import io
 import logging
+import time
 
 import asyncpg
 from docx import Document as DocxDocument
@@ -51,43 +52,54 @@ async def ingest_document(
     document_id: str,
     file_bytes: bytes,
     mime_type: str,
+    title: str = "",
 ) -> None:
     """
     Full ingestion pipeline: extract → chunk → embed → store.
     Runs as a FastAPI BackgroundTask after the upload response is sent.
     """
-    from db.chunks import delete_chunks_by_document, insert_chunk, insert_embedding
+    from db.chunks import bulk_insert_chunks_and_embeddings
+
+    label = f'"{title}"' if title else document_id
+    t_start = time.perf_counter()
 
     try:
-        logger.info("Ingestion started for document %s", document_id)
+        logger.info("[%s] Ingestion started (%.1f KB, %s)", label, len(file_bytes) / 1024, mime_type)
 
-        text = extract_text(file_bytes, mime_type)
+        t_extract = time.perf_counter()
+        text = await asyncio.to_thread(extract_text, file_bytes, mime_type)
         if not text.strip():
-            logger.warning("Document %s produced no extractable text — skipping", document_id)
+            logger.warning("[%s] No extractable text — skipping", label)
             return
 
-        nodes = chunk_text(text)
+        char_count = len(text)
+        word_count = len(text.split())
+        logger.info("[%s] Extracted text in %.1fs — %d chars, ~%d words", label, time.perf_counter() - t_extract, char_count, word_count)
+
+        t_chunk = time.perf_counter()
+        nodes = await asyncio.to_thread(chunk_text, text)
         if not nodes:
-            logger.warning("Document %s produced no chunks — skipping", document_id)
+            logger.warning("[%s] No chunks produced — skipping", label)
             return
 
-        # embed_chunks is synchronous CPU work — run in a thread to avoid blocking the event loop
+        chunk_sizes = [len(n.get_content().split()) for n in nodes]
+        logger.info(
+            "[%s] Chunked in %.1fs — %d pieces, min=%d words, avg=%d words, max=%d words",
+            label, time.perf_counter() - t_chunk, len(nodes), min(chunk_sizes), sum(chunk_sizes) // len(chunk_sizes), max(chunk_sizes),
+        )
+
         texts = [node.get_content() for node in nodes]
+        logger.info("[%s] Embedding %d chunks…", label, len(texts))
+        t_embed = time.perf_counter()
         embeddings: list[list[float]] = await asyncio.to_thread(embed_chunks, embed_model, texts)
+        logger.info("[%s] Embeddings done in %.1fs (dim=%d)", label, time.perf_counter() - t_embed, len(embeddings[0]) if embeddings else 0)
 
-        # Clear any previous ingestion so re-uploads don't accumulate duplicate chunks
-        await delete_chunks_by_document(pool, document_id)
+        t_db = time.perf_counter()
+        chunks = [(idx, node.get_content()) for idx, node in enumerate(nodes)]
+        count = await bulk_insert_chunks_and_embeddings(pool, document_id, chunks, embeddings)
+        logger.info("[%s] DB write done in %.1fs — %d chunks stored", label, time.perf_counter() - t_db, count)
 
-        for idx, (node, embedding) in enumerate(zip(nodes, embeddings)):
-            chunk_id = await insert_chunk(
-                pool,
-                document_id=document_id,
-                chunk_index=idx,
-                text=node.get_content(),
-            )
-            await insert_embedding(pool, chunk_id=chunk_id, embedding=embedding)
-
-        logger.info("Ingestion complete for document %s — %d chunks stored", document_id, len(nodes))
+        logger.info("[%s] Ingestion complete in %.1fs total", label, time.perf_counter() - t_start)
 
     except Exception:
-        logger.exception("Ingestion failed for document %s", document_id)
+        logger.exception("[%s] Ingestion failed after %.1fs", label, time.perf_counter() - t_start)

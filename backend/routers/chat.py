@@ -1,7 +1,10 @@
 import asyncio
 import json
+import logging
 
 from fastapi import APIRouter, HTTPException, Request, status
+
+logger = logging.getLogger(__name__)
 from fastapi.responses import StreamingResponse
 
 from core.config import settings
@@ -18,6 +21,15 @@ from schemas.chat import ChatOut, MessageIn, MessageOut
 from services.llm import build_system_prompt, stream_llm_response
 
 router = APIRouter()
+
+
+def _log_retrieved_chunks(chunks: list[dict]) -> None:
+    logger.info("Retrieved %d chunks:", len(chunks))
+    for i, chunk in enumerate(chunks, 1):
+        first_10 = " ".join(chunk["text"].split()[:10])
+        title = chunk.get("document_title", "unknown")
+        score = chunk.get("similarity", 0)
+        logger.info("  [%d] (score=%.4f) [%s] %s…", i, score, title, first_10)
 
 
 def _make_stream(
@@ -110,6 +122,7 @@ async def send_message(chat_id: str, body: MessageIn, request: Request):
         pool, embedding, chat["course_id"], document_ids=body.document_ids or None
     )
 
+    _log_retrieved_chunks(chunks)
     conversation = [*chat["messages"], {"role": "user", "content": content}]
     return _make_stream(pool, chat_id, chat["course_id"], user_msg, chunks, conversation)
 
@@ -135,5 +148,6 @@ async def edit_message(chat_id: str, message_id: str, body: MessageIn, request: 
         pool, embedding, chat["course_id"], document_ids=body.document_ids or None
     )
 
+    _log_retrieved_chunks(chunks)
     conversation = [*chat["messages"], {"role": "user", "content": content}]
     return _make_stream(pool, chat_id, chat["course_id"], user_msg, chunks, conversation)

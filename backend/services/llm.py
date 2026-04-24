@@ -45,6 +45,7 @@ async def stream_llm_response(
         model=model,
         messages=full_messages,
         stream=True,
+        temperature=0.4,
     )
     async for chunk in stream:
         delta = chunk.choices[0].delta.content

@@ -32,6 +32,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(levelname)s: %(name)s — %(message)s",
 )
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
 app = FastAPI(title="T(AI) API", lifespan=lifespan)
 

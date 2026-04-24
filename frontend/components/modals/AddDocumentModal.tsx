@@ -43,10 +43,7 @@ export default function AddDocumentModal({
   function handleFileSelect(file: File) {
     setSelectedFile(file);
     setUploadMode("file");
-    // Auto-fill name from filename (strip extension) if not already set
-    if (!name) {
-      setName(file.name.replace(/\.[^.]+$/, ""));
-    }
+    setName(file.name.replace(/\.[^.]+$/, ""));
   }
 
   function handleDrop(e: React.DragEvent<HTMLDivElement>) {

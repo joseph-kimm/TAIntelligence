@@ -171,8 +171,8 @@ export default function CourseSidebar({
             const isRenamingSection = renaming?.id === section.id && renaming?.type === 'section'
 
             return (
-              <div key={section.id} className={styles.chapter}>
-                <div className={styles.chapterRow}>
+              <div key={section.id} className={styles.section}>
+                <div className={styles.sectionRow}>
                   <div className={styles.rowLeft}>
                     <button className={styles.checkBtn} onClick={() => toggleSection(section)}>
                       {state === 'all' ? <CheckSquare size={20} color="var(--primary)" />
@@ -191,7 +191,7 @@ export default function CourseSidebar({
                           onBlur={commitRename}
                         />
                       ) : (
-                        <span className={styles.chapterTitle}>{section.title}</span>
+                        <span className={styles.sectionTitle}>{section.title}</span>
                       )}
                     </div>
                   </div>
@@ -225,7 +225,7 @@ export default function CourseSidebar({
                   </div>
                 </div>
 
-                <div className={styles.noteList}>
+                <div className={styles.documentList}>
                   {section.documents.map((doc) => {
                     const docTarget: MenuTarget = { type: 'document', id: doc.id }
                     const isDocMenuOpen = openMenu?.id === doc.id && openMenu?.type === 'document'
@@ -233,7 +233,7 @@ export default function CourseSidebar({
                     const isRenamingDoc = renaming?.id === doc.id && renaming?.type === 'document'
 
                     return (
-                      <div key={doc.id} className={styles.noteRow}>
+                      <div key={doc.id} className={styles.documentRow}>
                         <div className={styles.rowLeft}>
                           <button className={styles.checkBtn} onClick={() => toggleDocument(doc.id)}>
                             {selected.has(doc.id)
@@ -252,7 +252,7 @@ export default function CourseSidebar({
                                 onBlur={commitRename}
                               />
                             ) : (
-                              <span className={styles.noteTitle}>{doc.title}</span>
+                              <span className={styles.documentTitle}>{doc.title}</span>
                             )}
                           </div>
                         </div>
