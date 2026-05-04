@@ -26,6 +26,8 @@ class DocumentOut(BaseModel):
     title: str
     source_type: str | None = None
     source_ref: str | None = None
+    token_count: int | None = None
+    ingestionStatus: str = "complete"
 
 
 class SectionOut(BaseModel):

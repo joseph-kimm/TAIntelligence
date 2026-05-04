@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect } from "react";
+import { useState, useLayoutEffect, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import CourseSidebar from "@/components/layout/CourseSidebar";
@@ -55,6 +55,16 @@ export default function CoursePageClient({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSidebarOpen(window.innerWidth >= 768);
   }, []);
+
+  const hasPendingDocs = sections.some((s) =>
+    s.documents.some((d) => d.ingestionStatus === 'pending')
+  );
+
+  useEffect(() => {
+    if (!hasPendingDocs) return;
+    const id = setInterval(() => router.refresh(), 3000);
+    return () => clearInterval(id);
+  }, [hasPendingDocs, router]);
 
   async function handleSend(text: string) {
     let chatId = activeChatId;
@@ -128,11 +138,26 @@ export default function CoursePageClient({
           ),
         );
       } else if (event.type === "done") {
-        const msg = toMessage(event.message);
+        const msg = toMessage(event.message, event.citations);
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId
               ? { ...c, messages: c.messages.map((m) => (m.id === tempAssistantId ? msg : m)) }
+              : c,
+          ),
+        );
+      } else if (event.type === "error") {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempAssistantId
+                      ? { ...m, content: event.message, isError: true }
+                      : m,
+                  ),
+                }
               : c,
           ),
         );
@@ -217,11 +242,26 @@ export default function CoursePageClient({
           ),
         );
       } else if (event.type === "done") {
-        const msg = toMessage(event.message);
+        const msg = toMessage(event.message, event.citations);
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId
               ? { ...c, messages: c.messages.map((m) => (m.id === tempAssistantId ? msg : m)) }
+              : c,
+          ),
+        );
+      } else if (event.type === "error") {
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempAssistantId
+                      ? { ...m, content: event.message, isError: true }
+                      : m,
+                  ),
+                }
               : c,
           ),
         );

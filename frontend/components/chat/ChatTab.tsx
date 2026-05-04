@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { GraduationCap, ArrowUp, Plus, Trash2, Pencil, X } from 'lucide-react'
 import styles from './ChatTab.module.css'
 import MessageBubble from './MessageBubble'
+import { CitationMessage } from './CitationPopover'
 import type { Chat } from '@/types'
 
 interface ChatTabProps {
@@ -106,10 +107,14 @@ export default function ChatTab({
               msg.role === 'assistant' ? (
                 <div key={msg.id} className={styles.aiMessage}>
                   <div className={styles.aiAvatar}>
-                    <GraduationCap size={16} color="var(--primary)" />
+                    <GraduationCap size={16} color={msg.isError ? 'var(--error, #e53e3e)' : 'var(--primary)'} />
                   </div>
                   <div className={styles.aiBody}>
-                    <p className={styles.aiText}>{msg.content}</p>
+                    {msg.isError ? (
+                      <div className={styles.errorText}>{msg.content || 'The AI provider did not respond. Please try again.'}</div>
+                    ) : (
+                      <CitationMessage content={msg.content} citations={msg.citations} />
+                    )}
                   </div>
                 </div>
               ) : (

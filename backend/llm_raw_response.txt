@@ -1,0 +1,35 @@
+
+
+--- response ---
+
+Document databases and relational databases differ in several key ways:
+
+* **Data model and schema** – A document database stores data as self‑contained JSON (or XML) documents that can have arbitrarily nested structures, and the database does not enforce a fixed schema.  The schema is implicit and interpreted only when the data is read (schema‑on‑read) <<chunk_4,chunk_10>>.  In contrast, a relational database uses tables with rows and columns and enforces a strict schema at write time (schema‑on‑write) <<chunk_10>>.
+
+* **Query language** – Relational systems are queried with SQL, a declarative language that provides powerful join operations and set‑based processing.  Document systems use a variety of APIs; some expose only key‑value access, while others provide secondary indexes and richer query languages such as MongoDB’s aggregation pipeline, JSONPath, or XQuery for XML <<chunk_2,chunk_8>>.
+
+* **Joins and relationships** – Relational databases natively support joins and many‑to‑many relationships, making it easy to reference any row directly by its primary key.  Document databases can represent relationships by embedding related data or by storing reference IDs, but they cannot directly refer to a nested item; joins must be emulated (e.g., with $lookup in MongoDB) or handled in application code <<chunk_4,chunk_9>>.
+
+* **Locality and performance** – Because a whole document is stored together, retrieving an entire document often requires a single read, which can be faster when the application needs most of the data at once.  However, updating a document usually rewrites the whole document, so frequent small updates are less efficient.  Relational tables split data across multiple rows, requiring multiple index lookups to assemble a full object, which can involve more disk seeks <<chunk_8>>.
+
+* **Flexibility vs. structure** – Document databases excel when the data naturally fits a tree‑like, one‑to‑many structure and when schema flexibility is important (e.g., evolving fields over time).  Relational databases excel when strong consistency, complex joins, and well‑defined relationships are required <<chunk_9>>.
+
+* **Hybrid trends** – Modern relational systems have added JSON types and the ability to index inside documents, while some document databases have added join operators and secondary indexes, blurring the line between the two models <<chunk_1>>.
+
+--- response ---
+
+Large‑language models can be extended with **tool‑calling** (i.e., invoking external APIs or software) in several ways that have been explored in recent research:
+
+1. **Built‑in plugins / API‑call interfaces** – Leading LLM providers (e.g., OpenAI’s GPT‑4) have added a “function‑call” or plugin capability that lets the model emit a structured API request instead of plain text. The model can then send that request to a real‑world service (flight search, weather, translation, etc.) and incorporate the returned result into its next response <<chunk_1,chunk_9>>.
+
+2. **Explicit tool‑use prompting** – By providing the model with a description of the available tools (e.g., “web‑browser, calculator, Python interpreter”) in the prompt, the model can be guided to generate calls to those tools when needed. Early work demonstrated this with a small, well‑documented set of tools such as web‑browsing, calculators, translation systems, and Python interpreters <<chunk_2>>.
+
+3. **Tool‑specific instruction‑tuning datasets** – Projects like **ToolBench** automatically construct large instruction‑tuning corpora (hundreds of thousands of examples) that pair natural‑language requests with the exact API call (including required parameters). Training on such data teaches the model to map user intents to concrete tool invocations across thousands of real‑world REST APIs <<chunk_3,chunk_7>>.
+
+4. **Retriever‑aware training** – When the model must use up‑to‑date API documentation, the training data appends a retrieved documentation snippet to the user prompt (e.g., “Use this API documentation for reference: \<JSON\>”). This teaches the model to parse the second half of the prompt, select the correct API, and fill in the parameters, which improves test‑time adaptation and reduces hallucinations <<chunk_5>>.
+
+5. **Multi‑tool composition** – Instead of calling a single API, the model can be trained to generate **multi‑tool** queries that combine several services in one workflow (e.g., fetch cat facts, retrieve NBA news, and book a hotel). The instruction‑generation pipeline explicitly samples combinations of APIs to create such multi‑tool scenarios, encouraging the model to reason across tools and perform multi‑step reasoning <<chunk_7,chunk_10>>.
+
+6. **Evaluation frameworks** – Benchmarks such as **ToolBench**, **APIBench**, and **Toolqa** provide real‑world API calls, responses, and multi‑step reasoning traces. These datasets are used to evaluate how well a model can select the right tool, generate correct request payloads, and handle the returned data, guiding further improvements in tool‑calling capabilities <<chunk_7,chunk_8>>.
+
+In practice, you can start with a model that supports function‑calling (e.g., GPT‑4), define a catalog of tools (REST endpoints, Python snippets, etc.), optionally fine‑tune it on a tool‑use instruction set like ToolBench, and augment inference with a retrieval component that supplies the latest API docs. This combination enables the LLM to **understand user intent, select the appropriate external tool, construct a valid request, invoke the tool, and incorporate the result** into a coherent answer.

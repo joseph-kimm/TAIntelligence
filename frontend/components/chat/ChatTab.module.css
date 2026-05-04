@@ -58,8 +58,69 @@
   color: var(--on-surface);
 }
 
+.errorText {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--error, #e53e3e);
+  background: color-mix(in srgb, var(--error, #e53e3e) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error, #e53e3e) 25%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.875rem;
+}
+
 @media (max-width: 767px) {
   .aiText { font-size: 0.9375rem; }
+}
+
+/* Markdown content styles */
+.aiText p { margin: 0 0 0.5em; }
+.aiText p:last-child { margin-bottom: 0; }
+.aiText ul, .aiText ol { padding-left: 1.4em; margin: 0.4em 0; }
+.aiText li { margin-bottom: 0.2em; }
+.aiText h1, .aiText h2, .aiText h3 { font-weight: 600; margin: 0.8em 0 0.3em; }
+.aiText h1 { font-size: 1.25em; }
+.aiText h2 { font-size: 1.125em; }
+.aiText h3 { font-size: 1em; }
+.aiText strong { font-weight: 600; }
+.aiText em { font-style: italic; }
+.aiText code {
+  font-family: monospace;
+  background: color-mix(in srgb, var(--outline-variant) 20%, transparent);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.aiText pre {
+  background: color-mix(in srgb, var(--outline-variant) 15%, transparent);
+  padding: 0.8em 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.aiText pre code { background: none; padding: 0; font-size: 0.9em; }
+.aiText blockquote {
+  border-left: 3px solid var(--primary);
+  margin: 0.5em 0;
+  padding-left: 0.8em;
+  color: var(--on-surface-variant);
+}
+.aiText table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75em 0;
+  font-size: 0.9375em;
+}
+.aiText th, .aiText td {
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 40%, transparent);
+  padding: 0.45em 0.75em;
+  text-align: left;
+}
+.aiText th {
+  background: color-mix(in srgb, var(--outline-variant) 15%, transparent);
+  font-weight: 600;
+}
+.aiText tr:nth-child(even) {
+  background: color-mix(in srgb, var(--outline-variant) 6%, transparent);
 }
 
 .conceptCards {

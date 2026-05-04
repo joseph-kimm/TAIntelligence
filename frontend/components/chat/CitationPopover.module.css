@@ -1,0 +1,45 @@
+.citationBtn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.7em;
+  font-weight: 700;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-radius: 3px;
+  padding: 0.05em 0.35em;
+  vertical-align: super;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.citationBtn:hover {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.citationCard {
+  position: fixed;
+  z-index: 1000;
+  width: 320px;
+  padding: 0.75rem 1rem;
+  background: var(--surface-container-high);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 40%, transparent);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.citationDocTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+}
+
+.citationChunkText {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--on-surface-variant);
+  max-height: 12rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}

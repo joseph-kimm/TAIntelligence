@@ -5,7 +5,7 @@ async def get_document(pool: asyncpg.Pool, document_id: str) -> dict | None:
     """Return a single document by ID, or None if it doesn't exist."""
     async with pool.acquire() as conn:
         row = await conn.fetchrow("""
-            SELECT id::text, title, source_type, source_ref
+            SELECT id::text, title, source_type, source_ref, token_count
             FROM documents
             WHERE id = $1::uuid
         """, document_id)
@@ -24,9 +24,17 @@ async def create_document(
         row = await conn.fetchrow("""
             INSERT INTO documents (section_id, title, source_type, source_ref)
             VALUES ($1::uuid, $2, $3, $4)
-            RETURNING id::text, title, source_type, source_ref
+            RETURNING id::text, title, source_type, source_ref, token_count
         """, section_id, title, source_type, source_ref)
     return dict(row)
+
+
+async def update_document_token_count(pool: asyncpg.Pool, document_id: str, token_count: int) -> None:
+    """Set the token count on a document after ingestion completes."""
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE documents SET token_count = $1 WHERE id = $2::uuid
+        """, token_count, document_id)
 
 
 async def set_document_source_ref(pool: asyncpg.Pool, doc_id: str, source_ref: str) -> None:

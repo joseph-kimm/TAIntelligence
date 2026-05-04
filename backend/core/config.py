@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     hf_token: str
 
     openrouter_key: str
-    openrouter_model: str = "nvidia/nemotron-3-super-120b-a12b:free"
+    openrouter_model: str
+    model_context_limit:int
 
     model_config = SettingsConfigDict(
         env_file=".env",

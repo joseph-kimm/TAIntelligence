@@ -2,7 +2,7 @@
 -- Run this once in the Neon SQL editor to set up the database.
 -- Re-running is safe — all statements use IF NOT EXISTS.
 
--- pgvector extension: needed for embedding similarity search (RAG phase).
+-- pgvector extension: needed ofor embedding similarity search (RAG phase).
 -- Enabling it now so it's available when we get there.
 CREATE EXTENSION IF NOT EXISTS vector;
 
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS documents (
     title        TEXT        NOT NULL,
     source_type  TEXT        NOT NULL DEFAULT 'file',
     source_ref   TEXT,
+    token_count  INTEGER,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -48,3 +49,4 @@ CREATE INDEX IF NOT EXISTS documents_section_id_idx ON documents(section_id);
 -- ─── migration (run once if table already exists without these columns) ───────
 -- ALTER TABLE documents ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'file';
 -- ALTER TABLE documents ADD COLUMN IF NOT EXISTS source_ref TEXT;
+-- ALTER TABLE documents ADD COLUMN IF NOT EXISTS token_count INTEGER;

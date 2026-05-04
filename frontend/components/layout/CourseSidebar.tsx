@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Square, CheckSquare, Minus, Folder, FileText, MoreVertical, Plus, ChevronLeft, X } from 'lucide-react'
+import { Square, CheckSquare, Minus, Folder, FileText, MoreVertical, Plus, ChevronLeft, ChevronDown, X, Loader2 } from 'lucide-react'
 import styles from './CourseSidebar.module.css'
 import { renameSection, deleteSection, renameDocument, deleteDocument } from '@/lib/actions'
 import type { Section } from '@/types'
@@ -31,11 +31,21 @@ export default function CourseSidebar({
   const router = useRouter()
 
   const allDocumentIds = useMemo(
-    () => sections.flatMap((s) => s.documents.map((d) => d.id)),
+    () => sections.flatMap((s) => s.documents.filter((d) => d.ingestionStatus === 'complete').map((d) => d.id)),
     [sections]
   )
   const selected = selectedDocIds
   const setSelected = onSelectionChange
+
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
+
+  function toggleCollapse(sectionId: string) {
+    setCollapsedSections((prev) => {
+      const next = new Set(prev)
+      next.has(sectionId) ? next.delete(sectionId) : next.add(sectionId)
+      return next
+    })
+  }
 
   // Menu state
   const [openMenu, setOpenMenu] = useState<MenuTarget | null>(null)
@@ -77,7 +87,7 @@ export default function CourseSidebar({
   }
 
   function toggleSection(section: Section) {
-    const ids = section.documents.map((d) => d.id)
+    const ids = section.documents.filter((d) => d.ingestionStatus === 'complete').map((d) => d.id)
     const allChecked = ids.every((id) => selected.has(id))
     const next = new Set(selected)
     allChecked ? ids.forEach((id) => next.delete(id)) : ids.forEach((id) => next.add(id))
@@ -85,7 +95,7 @@ export default function CourseSidebar({
   }
 
   function sectionState(section: Section): 'all' | 'some' | 'none' {
-    const ids = section.documents.map((d) => d.id)
+    const ids = section.documents.filter((d) => d.ingestionStatus === 'complete').map((d) => d.id)
     const count = ids.filter((id) => selected.has(id)).length
     if (count === ids.length && ids.length > 0) return 'all'
     if (count > 0) return 'some'
@@ -170,6 +180,8 @@ export default function CourseSidebar({
             const isSectionConfirming = confirming?.id === section.id && confirming?.type === 'section'
             const isRenamingSection = renaming?.id === section.id && renaming?.type === 'section'
 
+            const isCollapsed = collapsedSections.has(section.id)
+
             return (
               <div key={section.id} className={styles.section}>
                 <div className={styles.sectionRow}>
@@ -179,8 +191,15 @@ export default function CourseSidebar({
                         : state === 'some' ? <Minus size={20} color="var(--primary)" />
                         : <Square size={20} />}
                     </button>
+                    <button
+                      className={`${styles.collapseBtn} ${isCollapsed ? styles.collapseBtnCollapsed : ''}`}
+                      onClick={() => toggleCollapse(section.id)}
+                      aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
+                    >
+                      <ChevronDown size={14} />
+                    </button>
                     <div className={styles.rowLabel}>
-                      <Folder size={18} />
+                      <Folder size={16} />
                       {isRenamingSection ? (
                         <input
                           ref={renameInputRef}
@@ -225,7 +244,7 @@ export default function CourseSidebar({
                   </div>
                 </div>
 
-                <div className={styles.documentList}>
+                {!isCollapsed && <div className={styles.documentList}>
                   {section.documents.map((doc) => {
                     const docTarget: MenuTarget = { type: 'document', id: doc.id }
                     const isDocMenuOpen = openMenu?.id === doc.id && openMenu?.type === 'document'
@@ -233,12 +252,19 @@ export default function CourseSidebar({
                     const isRenamingDoc = renaming?.id === doc.id && renaming?.type === 'document'
 
                     return (
-                      <div key={doc.id} className={styles.documentRow}>
+                      <div key={doc.id} className={`${styles.documentRow} ${doc.ingestionStatus === 'pending' ? styles.documentRowPending : ''}`}>
                         <div className={styles.rowLeft}>
-                          <button className={styles.checkBtn} onClick={() => toggleDocument(doc.id)}>
-                            {selected.has(doc.id)
-                              ? <CheckSquare size={18} color="var(--primary)" />
-                              : <Square size={18} />}
+                          <button
+                            className={styles.checkBtn}
+                            onClick={() => doc.ingestionStatus === 'complete' && toggleDocument(doc.id)}
+                            disabled={doc.ingestionStatus !== 'complete'}
+                            aria-label={doc.ingestionStatus === 'pending' ? 'Processing…' : undefined}
+                          >
+                            {doc.ingestionStatus === 'pending'
+                              ? <Loader2 size={18} className={styles.spinner} />
+                              : selected.has(doc.id)
+                                ? <CheckSquare size={18} color="var(--primary)" />
+                                : <Square size={18} />}
                           </button>
                           <div className={styles.rowLabel}>
                             <FileText size={18} />
@@ -287,7 +313,7 @@ export default function CourseSidebar({
                       </div>
                     )
                   })}
-                </div>
+                </div>}
 
                 {i < sections.length - 1 && <hr className={styles.divider} />}
               </div>

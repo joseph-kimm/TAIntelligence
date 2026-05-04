@@ -1,11 +1,13 @@
 import asyncio
 import json
 import logging
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
+from openai import APIConnectionError, APIStatusError, APITimeoutError, AuthenticationError, RateLimitError
 
 logger = logging.getLogger(__name__)
-from fastapi.responses import StreamingResponse
 
 from core.config import settings
 from db.chats import (
@@ -18,7 +20,8 @@ from db.chats import (
 )
 from db.chunks import search_chunks_by_embedding
 from schemas.chat import ChatOut, MessageIn, MessageOut
-from services.llm import build_system_prompt, stream_llm_response
+from services.llm import build_system_prompt, collect_llm_response, replay_as_stream
+from services.response_parser import parse_and_validate
 
 router = APIRouter()
 
@@ -54,25 +57,64 @@ def _make_stream(
         user_msg_data = MessageOut.model_validate(user_msg).model_dump(by_alias=True, mode="json")
         yield f"data: {json.dumps({'type': 'user_message', 'message': user_msg_data})}\n\n"
 
-        collected: list[str] = []
         try:
-            async for token in stream_llm_response(
+            raw = await collect_llm_response(
                 openrouter_key=settings.openrouter_key,
                 model=settings.openrouter_model,
                 messages=conversation,
                 system_prompt=system_prompt,
-            ):
-                collected.append(token)
-                yield f"data: {json.dumps({'type': 'delta', 'content': token})}\n\n"
-        except Exception as exc:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            )
+        except AuthenticationError:
+            logger.error("OpenRouter authentication failed — check OPENROUTER_KEY")
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Invalid API key. Check your OpenRouter credentials.'})}\n\n"
+            return
+        except RateLimitError:
+            logger.warning("OpenRouter rate limit exceeded")
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Rate limit exceeded. Please wait a moment and try again.'})}\n\n"
+            return
+        except APITimeoutError:
+            logger.warning("OpenRouter request timed out")
+            yield f"data: {json.dumps({'type': 'error', 'message': 'The AI provider timed out. Please try again.'})}\n\n"
+            return
+        except APIConnectionError:
+            logger.warning("Could not connect to OpenRouter")
+            yield f"data: {json.dumps({'type': 'error', 'message': 'Could not reach the AI provider. Check your internet connection.'})}\n\n"
+            return
+        except APIStatusError as exc:
+            logger.error("OpenRouter returned HTTP %d", exc.status_code)
+            if exc.status_code == 404:
+                msg = f"Model '{settings.openrouter_model}' not found or unavailable."
+            elif exc.status_code == 402:
+                msg = "Insufficient credits on your OpenRouter account."
+            elif exc.status_code >= 500:
+                msg = "The AI provider is experiencing issues. Please try again later."
+            else:
+                msg = f"The AI provider returned an error (HTTP {exc.status_code})."
+            yield f"data: {json.dumps({'type': 'error', 'message': msg})}\n\n"
+            return
+        except Exception:
+            logger.exception("Unexpected error during LLM collect")
+            yield f"data: {json.dumps({'type': 'error', 'message': 'An unexpected error occurred. Please try again.'})}\n\n"
             return
 
-        assistant_content = "".join(collected)
-        chunk_ids = [c["id"] for c in chunks]
-        assistant_msg = await add_message(pool, chat_id, "assistant", assistant_content, chunk_ids)
+        _RAW_RESPONSE_PATH = Path(__file__).parent.parent / "llm_raw_response.txt"
+        with _RAW_RESPONSE_PATH.open("a") as f:
+            f.write("\n\n--- response ---\n\n")
+            f.write(raw)
+
+        parsed = parse_and_validate(raw, chunks)
+
+        async for token in replay_as_stream(parsed.content):
+            yield f"data: {json.dumps({'type': 'delta', 'content': token})}\n\n"
+
+        chunk_ids = [c.id for c in parsed.cited_chunks]
+        assistant_msg = await add_message(pool, chat_id, "assistant", parsed.content, chunk_ids)
         assistant_msg_data = MessageOut.model_validate(assistant_msg).model_dump(by_alias=True, mode="json")
-        yield f"data: {json.dumps({'type': 'done', 'message': assistant_msg_data})}\n\n"
+        citations_data = [
+            {"id": c.id, "text": c.text, "documentTitle": c.document_title}
+            for c in parsed.cited_chunks
+        ]
+        yield f"data: {json.dumps({'type': 'done', 'message': assistant_msg_data, 'citations': citations_data})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

@@ -13,6 +13,13 @@ export interface Section {
 export interface Document {
   id: string
   title: string
+  ingestionStatus: 'pending' | 'complete' | 'failed'
+}
+
+export interface ChunkCitation {
+  id: string
+  text: string
+  documentTitle: string
 }
 
 export interface Message {
@@ -20,6 +27,8 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   chunkIds: string[]
+  citations?: ChunkCitation[]
+  isError?: boolean
 }
 
 export interface Chat {

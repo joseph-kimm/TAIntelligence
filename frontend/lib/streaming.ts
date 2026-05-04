@@ -1,4 +1,4 @@
-import type { Message } from '@/types'
+import type { ChunkCitation, Message } from '@/types'
 
 // Shape of the message object returned by the backend (superset of Message).
 interface BackendMessage {
@@ -13,12 +13,12 @@ interface BackendMessage {
 export type SseEvent =
   | { type: 'user_message'; message: BackendMessage }
   | { type: 'delta'; content: string }
-  | { type: 'done'; message: BackendMessage }
+  | { type: 'done'; message: BackendMessage; citations?: ChunkCitation[] }
   | { type: 'error'; message: string }
 
 /** Convert a BackendMessage to the frontend Message shape. */
-export function toMessage(m: BackendMessage): Message {
-  return { id: m.id, role: m.role, content: m.content, chunkIds: m.chunkIds }
+export function toMessage(m: BackendMessage, citations?: ChunkCitation[]): Message {
+  return { id: m.id, role: m.role, content: m.content, chunkIds: m.chunkIds, citations }
 }
 
 /**

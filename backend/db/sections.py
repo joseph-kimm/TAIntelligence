@@ -18,7 +18,15 @@ async def list_sections_with_documents(pool: asyncpg.Pool, course_id: str) -> li
                 s.position,
                 COALESCE(
                     json_agg(
-                        json_build_object('id', d.id::text, 'title', d.title)
+                        json_build_object(
+                                'id', d.id::text,
+                                'title', d.title,
+                                'ingestionStatus', CASE
+                                    WHEN d.source_type = 'website' THEN 'complete'
+                                    WHEN EXISTS (SELECT 1 FROM document_chunks dc WHERE dc.document_id = d.id) THEN 'complete'
+                                    ELSE 'pending'
+                                END
+                            )
                         ORDER BY d.created_at
                     ) FILTER (WHERE d.id IS NOT NULL),
                     '[]'::json

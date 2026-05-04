@@ -4,12 +4,15 @@ import logging
 import time
 
 import asyncpg
+import tiktoken
 from docx import Document as DocxDocument
 from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.schema import Document as LlamaDocument
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from pypdf import PdfReader
 from core.config import settings
+from db.chunks import bulk_insert_chunks_and_embeddings
+from db.documents import update_document_token_count
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +61,6 @@ async def ingest_document(
     Full ingestion pipeline: extract → chunk → embed → store.
     Runs as a FastAPI BackgroundTask after the upload response is sent.
     """
-    from db.chunks import bulk_insert_chunks_and_embeddings
-
     label = f'"{title}"' if title else document_id
     t_start = time.perf_counter()
 
@@ -74,7 +75,8 @@ async def ingest_document(
 
         char_count = len(text)
         word_count = len(text.split())
-        logger.info("[%s] Extracted text in %.1fs — %d chars, ~%d words", label, time.perf_counter() - t_extract, char_count, word_count)
+        token_count = len(tiktoken.get_encoding("cl100k_base").encode(text))
+        logger.info("[%s] Extracted text in %.1fs — %d chars, ~%d words, %d tokens", label, time.perf_counter() - t_extract, char_count, word_count, token_count)
 
         t_chunk = time.perf_counter()
         nodes = await asyncio.to_thread(chunk_text, text)
@@ -98,6 +100,8 @@ async def ingest_document(
         chunks = [(idx, node.get_content()) for idx, node in enumerate(nodes)]
         count = await bulk_insert_chunks_and_embeddings(pool, document_id, chunks, embeddings)
         logger.info("[%s] DB write done in %.1fs — %d chunks stored", label, time.perf_counter() - t_db, count)
+
+        await update_document_token_count(pool, document_id, token_count)
 
         logger.info("[%s] Ingestion complete in %.1fs total", label, time.perf_counter() - t_start)
 
