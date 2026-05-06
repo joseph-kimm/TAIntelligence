@@ -365,3 +365,50 @@
   background: var(--surface-container-high);
   color: var(--on-surface);
 }
+
+/* Center avatar with loading indicator */
+.aiMessageLoading {
+  align-items: center;
+}
+
+.aiMessageLoading .aiAvatar {
+  margin-top: 0;
+}
+
+/* Loading indicator */
+.loadingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.125rem 0;
+}
+
+.loadingDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--primary);
+  flex-shrink: 0;
+  animation: loadingPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.loadingText {
+  font-size: 0.9375rem;
+  color: var(--on-surface-variant);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.loadingTextVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.loadingTextHidden {
+  opacity: 0;
+  transform: translateY(4px);
+}

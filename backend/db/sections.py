@@ -23,7 +23,7 @@ async def list_sections_with_documents(pool: asyncpg.Pool, course_id: str) -> li
                                 'title', d.title,
                                 'ingestionStatus', CASE
                                     WHEN d.source_type = 'website' THEN 'complete'
-                                    WHEN EXISTS (SELECT 1 FROM document_chunks dc WHERE dc.document_id = d.id) THEN 'complete'
+                                    WHEN EXISTS (SELECT 1 FROM child_chunks cc WHERE cc.document_id = d.id) THEN 'complete'
                                     ELSE 'pending'
                                 END
                             )

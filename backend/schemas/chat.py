@@ -14,12 +14,19 @@ class MessageIn(_CamelModel):
     document_ids: list[str] = []
 
 
+class ChunkCitationOut(_CamelModel):
+    id: str
+    text: str
+    document_title: str
+
+
 class MessageOut(_CamelModel):
     id: str
     chat_id: str
     role: str
     content: str
     chunk_ids: list[str]
+    citations: list[ChunkCitationOut] = []
     created_at: datetime
 
 

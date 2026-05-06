@@ -33,3 +33,63 @@ Large‑language models can be extended with **tool‑calling** (i.e., invoking 
 6. **Evaluation frameworks** – Benchmarks such as **ToolBench**, **APIBench**, and **Toolqa** provide real‑world API calls, responses, and multi‑step reasoning traces. These datasets are used to evaluate how well a model can select the right tool, generate correct request payloads, and handle the returned data, guiding further improvements in tool‑calling capabilities <<chunk_7,chunk_8>>.
 
 In practice, you can start with a model that supports function‑calling (e.g., GPT‑4), define a catalog of tools (REST endpoints, Python snippets, etc.), optionally fine‑tune it on a tool‑use instruction set like ToolBench, and augment inference with a retrieval component that supplies the latest API docs. This combination enables the LLM to **understand user intent, select the appropriate external tool, construct a valid request, invoke the tool, and incorporate the result** into a coherent answer.
+
+--- response ---
+
+Large‑language models can be extended with “tool‑calling” so that, instead of trying to answer everything from their internal parameters, they invoke external services (APIs, calculators, browsers, etc.) to obtain up‑to‑date or computational results.  The literature describes several practical ways to enable this capability:
+
+1. **Built‑in plugins / official tool APIs** –  
+   Leading LLM providers have already added plugin interfaces that let the model call external APIs through a standardized function‑call mechanism.  For example, OpenAI’s ChatGPT (gpt‑3.5‑turbo‑16k) can be upgraded with function‑call support, and GPT‑4 has a dedicated plugin system that can invoke web‑search, calculators, translation services, and more <<chunk_1,chunk_2>>.
+
+2. **Explicit tool‑use prompting** –  
+   When the model is given a prompt that describes a desired tool (e.g., “use a web‑browser to look up the latest stock price”), it can generate a structured API call in the response.  Early work demonstrated this with a small, well‑documented set of tools such as web‑browsing, calculators, translation systems, and Python interpreters <<chunk_2>>.
+
+3. **Tool‑specific fine‑tuning (ToolBench)** –  
+   A systematic pipeline can be built that first collects a large catalog of real‑world REST APIs (e.g., 16 464 APIs from RapidAPI across 49 categories) and then automatically generates instruction‑tuning data (ToolBench) by prompting a strong LLM (ChatGPT) to write diverse, multi‑tool instructions for those APIs <<chunk_3,chunk_6>>.  Training on this data teaches the model to understand API documentation, select the appropriate endpoint, and fill in required parameters.
+
+4. **Retriever‑aware training** –  
+   To handle ever‑changing API docs, the training data can prepend the retrieved API specification (as JSON) to the user query.  The model learns to parse the second half (the doc) and use it to answer the first half (the user request), which improves zero‑shot tool use, reduces hallucinations, and lets the model adapt to new or updated APIs at test time <<chunk_7>>.
+
+5. **Multi‑tool composition** –  
+   Real‑world tasks often require chaining several tools (e.g., fetching weather data, then booking a hotel, then sending a confirmation email).  The instruction‑generation process deliberately samples combinations of APIs and asks the model to produce a single plan that invokes multiple services, thereby training the model to reason across steps and pass intermediate results from one tool to the next <<chunk_6>>.
+
+6. **Evaluation frameworks** –  
+   Benchmarks such as ToolBench, APIBench, and ToolQA provide large collections of real API calls and responses, enabling systematic evaluation of a model’s ability to generate correct calls, handle multi‑step reasoning, and avoid hallucinations.  These datasets also include metrics for multi‑tool scenarios and retrieval‑augmented reasoning <<chunk_8>>.
+
+In practice, you can start by enabling the built‑in function‑call or plugin interface of a hosted LLM, then progressively move to a custom fine‑tuned model trained on a curated, multi‑tool instruction set (like ToolBench) and augmented with retrieval of up‑to‑date API documentation.  This combination gives you both the flexibility of calling any REST endpoint and the robustness that comes from targeted training and evaluation.
+
+--- response ---
+
+Tool calling with large language models (LLMs) can be approached in several complementary ways:
+
+1. **Integrating pre‑built plugins or extensions** – Major LLM providers have begun to ship plugins that let the model invoke external APIs (e.g., web search, calculators, translation services, Python interpreters) through a standardized API‑calling interface <<chunk_1,chunk_10>>.  
+
+2. **Using a curated repository of real‑world APIs** – Projects such as ToolBench collect thousands of REST APIs (e.g., from RapidAPI) and provide the associated documentation, parameters, and example calls so that an LLM can learn to generate and execute genuine API requests <<chunk_3,chunk_6>>.  
+
+3. **Prompt‑based tool selection** – By prompting the LLM with a description of the desired functionality, the model can select an appropriate tool from a known set and produce the exact code or HTTP request needed to call it (e.g., “convert spoken audio to text using Torch Hub”) <<chunk_4>>.  
+
+4. **Retriever‑aware training** – During instruction tuning, the model is given the retrieved API documentation together with the user query, teaching it to parse the documentation and produce a correct API call even when the underlying API changes at test time <<chunk_7>>.  
+
+5. **Multi‑tool composition** – Instruction datasets can be built to require the LLM to combine several tools in a single workflow (e.g., fetch weather data, then book a hotel, then send a confirmation email), which improves the model’s ability to handle realistic, multi‑step scenarios <<chunk_2,chunk_6,chunk_8>>.  
+
+6. **Fine‑tuning on tool‑use data** – Systematic fine‑tuning on large, high‑quality tool‑use corpora (such as ToolBench) helps the model learn the syntax, parameter constraints, and error handling needed for reliable tool invocation <<chunk_7>>.  
+
+7. **Response compression and error filtering** – After an API call, the raw response can be compressed to fit the LLM’s context window, and low‑quality or failing APIs can be filtered out during dataset construction, ensuring that the model only learns from reliable tool interactions <<chunk_9>>.  
+
+By combining these strategies—plugin integration, curated API collections, prompt engineering, retrieval‑augmented training, multi‑tool composition, fine‑tuning, and robust data preprocessing—developers can enable LLMs to call external tools effectively across a wide range of applications.
+
+--- response ---
+
+Tool calling with large language models (LLMs) can be done in several ways, most of which revolve around giving the model access to external services through well‑defined APIs or plug‑in interfaces.
+
+1. **Built‑in tool plug‑ins** – Many LLM providers now ship models with plug‑ins that let the model invoke external services directly from the prompt.  Examples include web‑browsing, calculators, translation systems, and Python interpreters that the model can call as needed <<chunk_2,chunk_10>>.
+
+2. **API‑based plug‑ins** – By exposing REST APIs (e.g., those hosted on RapidAPI) to the model, an LLM can call virtually any cloud service: flight‑booking, weather, e‑commerce, social‑media, etc.  The model receives the API documentation, selects the appropriate endpoint, fills in the required parameters, and sends the request <<chunk_3,chunk_6>>.
+
+3. **ToolBench / ToolLLM framework** – A systematic pipeline for tool use has been built that (a) gathers thousands of high‑quality APIs, (b) automatically generates diverse instruction‑tuning data (including multi‑tool scenarios), and (c) fine‑tunes the LLM on this data.  This approach enables the model to handle both single‑tool and multi‑tool queries and to reason about constraints such as parameter size or accuracy <<chunk_3,chunk_6,chunk_7>>.
+
+4. **Retriever‑aware training** – During fine‑tuning, the model is given the relevant API documentation (retrieved at inference time) as part of the prompt.  This helps the model adapt to documentation changes, reduces hallucinations, and improves its ability to parse complex requests that involve multiple tools <<chunk_7>>.
+
+5. **Prompt engineering for tool selection** – By phrasing the user request so that it explicitly mentions the desired functionality (e.g., “convert spoken audio to text using Torch Hub”), the model can select the correct library and construct a valid API call, as demonstrated by the Gorilla model’s ability to generate accurate calls where other models hallucinate <<chunk_4>>.
+
+In practice, you would (a) expose the needed APIs to the LLM (either via a plug‑in framework or a custom retrieval system), (b) provide the model with up‑to‑date documentation, and (c) fine‑tune or prompt‑engineer the model to generate the correct call syntax and populate all required parameters.  This combination lets the LLM act as a natural‑language interface to a wide range of computational tools.

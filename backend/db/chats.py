@@ -61,6 +61,19 @@ async def list_chats_with_messages(pool: asyncpg.Pool, course_id: str) -> list[d
                             'role',       m.role,
                             'content',    m.content,
                             'chunk_ids',  ARRAY(SELECT elem::text FROM unnest(m.chunk_ids) AS elem),
+                            'citations',  COALESCE(
+                                (
+                                    SELECT json_agg(json_build_object(
+                                        'id',             cc.id::text,
+                                        'text',           cc.text,
+                                        'document_title', d.title
+                                    ))
+                                    FROM child_chunks cc
+                                    JOIN documents d ON d.id = cc.document_id
+                                    WHERE cc.id = ANY(m.chunk_ids)
+                                ),
+                                '[]'::json
+                            ),
                             'created_at', m.created_at
                         )
                         ORDER BY m.created_at ASC

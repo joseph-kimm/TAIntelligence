@@ -11,7 +11,7 @@ from llama_index.core.schema import Document as LlamaDocument
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from pypdf import PdfReader
 from core.config import settings
-from db.chunks import bulk_insert_chunks_and_embeddings
+from db.chunks import bulk_insert_parent_child_chunks
 from db.documents import update_document_token_count
 
 logger = logging.getLogger(__name__)
@@ -90,16 +90,25 @@ async def ingest_document(
             label, time.perf_counter() - t_chunk, len(nodes), min(chunk_sizes), sum(chunk_sizes) // len(chunk_sizes), max(chunk_sizes),
         )
 
-        texts = [node.get_content() for node in nodes]
-        logger.info("[%s] Embedding %d chunks…", label, len(texts))
+        child_texts = [node.get_content() for node in nodes]
+
+        enc = tiktoken.get_encoding("cl100k_base")
+        child_token_counts = [len(enc.encode(t)) for t in child_texts]
+
+        groups = [child_texts[i:i + 4] for i in range(0, len(child_texts), 4)]
+        parent_texts = ["\n\n".join(group) for group in groups]
+        child_parent_indices = [i // 4 for i in range(len(child_texts))]
+
+        logger.info("[%s] Embedding %d child chunks (%d parents)…", label, len(child_texts), len(parent_texts))
         t_embed = time.perf_counter()
-        embeddings: list[list[float]] = await asyncio.to_thread(embed_chunks, embed_model, texts)
+        embeddings: list[list[float]] = await asyncio.to_thread(embed_chunks, embed_model, child_texts)
         logger.info("[%s] Embeddings done in %.1fs (dim=%d)", label, time.perf_counter() - t_embed, len(embeddings[0]) if embeddings else 0)
 
         t_db = time.perf_counter()
-        chunks = [(idx, node.get_content()) for idx, node in enumerate(nodes)]
-        count = await bulk_insert_chunks_and_embeddings(pool, document_id, chunks, embeddings)
-        logger.info("[%s] DB write done in %.1fs — %d chunks stored", label, time.perf_counter() - t_db, count)
+        count = await bulk_insert_parent_child_chunks(
+            pool, document_id, parent_texts, child_texts, child_token_counts, child_parent_indices, embeddings
+        )
+        logger.info("[%s] DB write done in %.1fs — %d child chunks, %d parents stored", label, time.perf_counter() - t_db, count, len(parent_texts))
 
         await update_document_token_count(pool, document_id, token_count)
 

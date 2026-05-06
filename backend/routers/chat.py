@@ -109,12 +109,12 @@ def _make_stream(
 
         chunk_ids = [c.id for c in parsed.cited_chunks]
         assistant_msg = await add_message(pool, chat_id, "assistant", parsed.content, chunk_ids)
-        assistant_msg_data = MessageOut.model_validate(assistant_msg).model_dump(by_alias=True, mode="json")
-        citations_data = [
-            {"id": c.id, "text": c.text, "documentTitle": c.document_title}
+        assistant_msg["citations"] = [
+            {"id": c.id, "text": c.text, "document_title": c.document_title}
             for c in parsed.cited_chunks
         ]
-        yield f"data: {json.dumps({'type': 'done', 'message': assistant_msg_data, 'citations': citations_data})}\n\n"
+        assistant_msg_data = MessageOut.model_validate(assistant_msg).model_dump(by_alias=True, mode="json")
+        yield f"data: {json.dumps({'type': 'done', 'message': assistant_msg_data})}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 

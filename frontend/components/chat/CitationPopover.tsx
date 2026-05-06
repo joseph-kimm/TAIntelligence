@@ -114,10 +114,8 @@ interface CitationMessageProps {
 export function CitationMessage({ content, citations }: CitationMessageProps) {
   const [popover, setPopover] = useState<PopoverState | null>(null)
 
-  const hasCitations = citations && citations.length > 0
-  const { processedContent, citationMap } = hasCitations
-    ? prepareContent(content, citations)
-    : { processedContent: content, citationMap: new Map<string, ChunkCitation>() }
+  const { processedContent, citationMap } = prepareContent(content, citations ?? [])
+  const hasCitations = citationMap.size > 0
 
   const markdownComponents = hasCitations
     ? {

@@ -7,17 +7,19 @@ interface BackendMessage {
   role: 'user' | 'assistant'
   content: string
   chunkIds: string[]
+  citations?: ChunkCitation[]
   createdAt: string
 }
 
 export type SseEvent =
   | { type: 'user_message'; message: BackendMessage }
   | { type: 'delta'; content: string }
-  | { type: 'done'; message: BackendMessage; citations?: ChunkCitation[] }
+  | { type: 'done'; message: BackendMessage }
   | { type: 'error'; message: string }
 
 /** Convert a BackendMessage to the frontend Message shape. */
-export function toMessage(m: BackendMessage, citations?: ChunkCitation[]): Message {
+export function toMessage(m: BackendMessage): Message {
+  const citations = m.citations?.length ? m.citations : undefined
   return { id: m.id, role: m.role, content: m.content, chunkIds: m.chunkIds, citations }
 }
 

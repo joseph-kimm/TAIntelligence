@@ -138,7 +138,7 @@ export default function CoursePageClient({
           ),
         );
       } else if (event.type === "done") {
-        const msg = toMessage(event.message, event.citations);
+        const msg = toMessage(event.message);
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId
@@ -242,7 +242,7 @@ export default function CoursePageClient({
           ),
         );
       } else if (event.type === "done") {
-        const msg = toMessage(event.message, event.citations);
+        const msg = toMessage(event.message);
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId

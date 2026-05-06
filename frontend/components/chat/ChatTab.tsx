@@ -1,24 +1,57 @@
-'use client'
+"use client";
 
-import { useEffect, useRef, useState } from 'react'
-import { GraduationCap, ArrowUp, Plus, Trash2, Pencil, X } from 'lucide-react'
-import styles from './ChatTab.module.css'
-import MessageBubble from './MessageBubble'
-import { CitationMessage } from './CitationPopover'
-import type { Chat } from '@/types'
+import { useEffect, useRef, useState } from "react";
+import { GraduationCap, ArrowUp, Plus, Trash2, Pencil, X } from "lucide-react";
+import styles from "./ChatTab.module.css";
+import MessageBubble from "./MessageBubble";
+import { CitationMessage } from "./CitationPopover";
+import type { Chat } from "@/types";
 
 interface ChatTabProps {
-  chats: Chat[]
-  pendingNewChat: boolean
-  onSend: (text: string) => void
-  onNewChat: () => void
-  onDeleteChat: (chatId: string) => void
-  onEditMessage: (chatId: string, messageId: string, content: string) => void
+  chats: Chat[];
+  pendingNewChat: boolean;
+  onSend: (text: string) => void;
+  onNewChat: () => void;
+  onDeleteChat: (chatId: string) => void;
+  onEditMessage: (chatId: string, messageId: string, content: string) => void;
 }
 
 interface EditState {
-  chatId: string
-  messageId: string
+  chatId: string;
+  messageId: string;
+}
+
+const LOADING_PHASES = [
+  "searching relevant context...",
+  "synthesizing information...",
+  "producing response...",
+];
+
+function LoadingIndicator() {
+  const [phase, setPhase] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setPhase((p) => (p + 1) % LOADING_PHASES.length);
+        setVisible(true);
+      }, 300);
+    }, 9000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className={styles.loadingIndicator}>
+      <span className={styles.loadingDot} />
+      <span
+        className={`${styles.loadingText} ${visible ? styles.loadingTextVisible : styles.loadingTextHidden}`}
+      >
+        {LOADING_PHASES[phase]}
+      </span>
+    </div>
+  );
 }
 
 export default function ChatTab({
@@ -29,50 +62,52 @@ export default function ChatTab({
   onDeleteChat,
   onEditMessage,
 }: ChatTabProps) {
-  const [input, setInput] = useState('')
-  const [editState, setEditState] = useState<EditState | null>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [input, setInput] = useState("");
+  const [editState, setEditState] = useState<EditState | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const activeChat = chats.at(-1)
-  const activeHasMessages = (activeChat?.messages.length ?? 0) > 0
-  const lastUserMsgId = activeChat?.messages.findLast((m) => m.role === 'user')?.id
-  const showNewChatBtn = activeHasMessages && !pendingNewChat && !editState
+  const activeChat = chats.at(-1);
+  const activeHasMessages = (activeChat?.messages.length ?? 0) > 0;
+  const lastUserMsgId = activeChat?.messages.findLast(
+    (m) => m.role === "user",
+  )?.id;
+  const showNewChatBtn = activeHasMessages && !pendingNewChat && !editState;
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chats])
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chats]);
 
   function handleSend() {
-    if (!input.trim()) return
+    if (!input.trim()) return;
     if (editState) {
-      onEditMessage(editState.chatId, editState.messageId, input.trim())
-      setEditState(null)
+      onEditMessage(editState.chatId, editState.messageId, input.trim());
+      setEditState(null);
     } else {
-      onSend(input.trim())
+      onSend(input.trim());
     }
-    setInput('')
+    setInput("");
   }
 
   function handleKey(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
-    if (e.key === 'Escape' && editState) {
-      cancelEdit()
+    if (e.key === "Escape" && editState) {
+      cancelEdit();
     }
   }
 
   function startEdit(chatId: string, messageId: string, content: string) {
-    setEditState({ chatId, messageId })
-    setInput(content)
-    inputRef.current?.focus()
+    setEditState({ chatId, messageId });
+    setInput(content);
+    inputRef.current?.focus();
   }
 
   function cancelEdit() {
-    setEditState(null)
-    setInput('')
+    setEditState(null);
+    setInput("");
   }
 
   return (
@@ -104,16 +139,29 @@ export default function ChatTab({
             )}
 
             {chat.messages.map((msg) =>
-              msg.role === 'assistant' ? (
-                <div key={msg.id} className={styles.aiMessage}>
+              msg.role === "assistant" ? (
+                <div key={msg.id} className={`${styles.aiMessage}${msg.content === '' && !msg.isError ? ` ${styles.aiMessageLoading}` : ''}`}>
                   <div className={styles.aiAvatar}>
-                    <GraduationCap size={16} color={msg.isError ? 'var(--error, #e53e3e)' : 'var(--primary)'} />
+                    <GraduationCap
+                      size={16}
+                      color={
+                        msg.isError ? "var(--error, #e53e3e)" : "var(--primary)"
+                      }
+                    />
                   </div>
                   <div className={styles.aiBody}>
                     {msg.isError ? (
-                      <div className={styles.errorText}>{msg.content || 'The AI provider did not respond. Please try again.'}</div>
+                      <div className={styles.errorText}>
+                        {msg.content ||
+                          "The AI provider did not respond. Please try again."}
+                      </div>
+                    ) : msg.content === "" ? (
+                      <LoadingIndicator />
                     ) : (
-                      <CitationMessage content={msg.content} citations={msg.citations} />
+                      <CitationMessage
+                        content={msg.content}
+                        citations={msg.citations}
+                      />
                     )}
                   </div>
                 </div>
@@ -124,7 +172,7 @@ export default function ChatTab({
                   isLastUserMessage={msg.id === lastUserMsgId}
                   onEdit={(content) => startEdit(chat.id, msg.id, content)}
                 />
-              )
+              ),
             )}
           </div>
         ))}
@@ -138,7 +186,11 @@ export default function ChatTab({
 
       <div className={styles.inputArea}>
         {showNewChatBtn && (
-          <button className={styles.newChatBtn} onClick={onNewChat} title="New conversation">
+          <button
+            className={styles.newChatBtn}
+            onClick={onNewChat}
+            title="New conversation"
+          >
             <Plus size={14} />
             New chat
           </button>
@@ -156,7 +208,11 @@ export default function ChatTab({
           <input
             ref={inputRef}
             className={styles.input}
-            placeholder={editState ? 'Edit your message…' : 'Ask a question about your notes...'}
+            placeholder={
+              editState
+                ? "Edit your message…"
+                : "Ask a question about your notes..."
+            }
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
@@ -167,5 +223,5 @@ export default function ChatTab({
         </div>
       </div>
     </div>
-  )
+  );
 }
