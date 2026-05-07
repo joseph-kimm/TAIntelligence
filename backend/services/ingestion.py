@@ -37,7 +37,6 @@ def extract_text(file_bytes: bytes, mime_type: str) -> str:
 
     return file_bytes.decode("utf-8", errors="replace")
 
-
 def chunk_text(text: str):
     """Split text into 350-token windows with 60-token overlap."""
     splitter = SentenceSplitter(chunk_size=350, chunk_overlap=60)

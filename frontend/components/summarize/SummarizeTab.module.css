@@ -94,22 +94,6 @@
 
 .historyList::-webkit-scrollbar { display: none; }
 
-.historyItem {
-  text-align: left;
-  padding: 1rem;
-  border-radius: 0.75rem;
-  border: 1px solid transparent;
-  background: none;
-  transition: background 0.15s, border-color 0.15s;
-  width: 100%;
-}
-
-.historyItem:hover { background: var(--surface-container-low); }
-
-.historyItemActive {
-  background: var(--surface-container-low);
-  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
-}
 
 .historyItemHeader {
   display: flex;
@@ -216,27 +200,135 @@
   color: var(--on-surface-variant);
 }
 
+/* Summarize action area (bottom of left panel) */
+.summarizeAction {
+  border-top: 1px solid color-mix(in srgb, var(--outline-variant) 20%, transparent);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.summarizeActionMeta {
+  font-size: 0.7rem;
+  color: var(--on-surface-variant);
+  padding: 0 0.25rem;
+}
+
 .summarizeBtn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
-  padding: 0.625rem 1.5rem;
+  padding: 0.625rem 1rem;
   background: var(--primary);
   color: var(--on-primary);
   border-radius: 9999px;
   font-weight: 700;
   font-size: 0.875rem;
-  white-space: nowrap;
+  width: 100%;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 25%, transparent);
+  transition: background 0.15s;
+}
+
+.summarizeBtn:hover:not(:disabled) { background: var(--primary-dim); }
+
+.summarizeBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Mobile-only summarize button in viewer top bar */
+.summarizeBtnMobile {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 25%, transparent);
   transition: background 0.15s;
 }
 
-.summarizeBtn:hover { background: var(--primary-dim); }
+.summarizeBtnMobile:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
 
 @media (max-width: 767px) {
-  .summarizeBtn span { display: none; }
-  .summarizeBtn { padding: 0.625rem; border-radius: 50%; }
+  .summarizeBtnMobile { display: flex; }
+}
+
+/* Refinement chatbox */
+.refineBox {
+  border-top: 1px solid color-mix(in srgb, var(--outline-variant) 20%, transparent);
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.refineLabel {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  padding: 0 0.25rem;
+}
+
+.refineInputRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.refineTextarea {
+  flex: 1;
+  resize: none;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 40%, transparent);
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.refineTextarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.refineTextarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refineSendBtn {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--on-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.refineSendBtn:hover:not(:disabled) { background: var(--primary-dim); }
+
+.refineSendBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .docContent {
@@ -280,6 +372,182 @@
   font-style: italic;
   color: var(--on-primary-container);
   line-height: 1.7;
+}
+
+/* History item row with delete button */
+.historyItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.historyItem:hover { background: var(--surface-container-low); }
+
+.historyItemActive {
+  background: var(--surface-container-low);
+  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+.historyItemBtn {
+  flex: 1;
+  text-align: left;
+  padding: 1rem 0.75rem 1rem 1rem;
+  background: none;
+  min-width: 0;
+}
+
+.historyDeleteBtn {
+  padding: 0.75rem 0.75rem 0.75rem 0.25rem;
+  color: var(--on-surface-variant);
+  opacity: 0;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+}
+
+.historyItem:hover .historyDeleteBtn { opacity: 1; }
+
+.historyEmpty {
+  font-size: 0.75rem;
+  color: var(--on-surface-variant);
+  padding: 0.5rem;
+  line-height: 1.5;
+}
+
+/* Loading state */
+.loadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 0;
+}
+
+.loadingText {
+  font-size: 0.9375rem;
+  color: var(--on-surface-variant);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinIcon {
+  animation: spin 1s linear infinite;
+}
+
+/* Empty state */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 4rem 0;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.emptyBody {
+  font-size: 0.875rem;
+  color: var(--on-surface-variant);
+  line-height: 1.6;
+  max-width: 24rem;
+}
+
+/* Error */
+.errorText {
+  font-size: 0.875rem;
+  color: var(--error, #b00020);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--error, #b00020) 8%, transparent);
+}
+
+/* Summary content — markdown prose */
+.summaryContent {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: var(--on-surface-variant);
+}
+
+.summaryContent :global(h1),
+.summaryContent :global(h2),
+.summaryContent :global(h3) {
+  color: var(--on-surface);
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  line-height: 1.3;
+}
+
+.summaryContent :global(h1) { font-size: 1.25rem; }
+.summaryContent :global(h2) { font-size: 1.1rem; }
+.summaryContent :global(h3) { font-size: 1rem; }
+
+.summaryContent :global(p) { margin-bottom: 0.75rem; }
+
+.summaryContent :global(ul),
+.summaryContent :global(ol) {
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summaryContent :global(li) { padding-left: 0.25rem; }
+
+.summaryContent :global(strong) {
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.summaryContent :global(blockquote) {
+  padding: 0.75rem 1.25rem;
+  background: color-mix(in srgb, var(--primary) 6%, transparent);
+  border-left: 4px solid var(--primary);
+  border-radius: 0.5rem;
+  font-style: italic;
+  margin: 0.75rem 0;
+}
+
+.summaryContent :global(code) {
+  font-family: monospace;
+  font-size: 0.85em;
+  background: color-mix(in srgb, var(--on-surface) 8%, transparent);
+  padding: 0.1em 0.4em;
+  border-radius: 0.3rem;
+}
+
+.summaryContent :global(pre) {
+  background: color-mix(in srgb, var(--on-surface) 6%, transparent);
+  padding: 1rem;
+  border-radius: 0.75rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+.summaryContent :global(pre code) {
+  background: none;
+  padding: 0;
+}
+
+.summaryContent :global(hr) {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--outline-variant) 30%, transparent);
+  margin: 1.25rem 0;
 }
 
 .viewerFooter {

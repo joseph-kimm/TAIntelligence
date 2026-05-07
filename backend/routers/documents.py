@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
@@ -8,11 +9,14 @@ from db.documents import (
     create_document,
     delete_document,
     get_document,
+    get_document_ingestion_status,
     rename_document,
     set_document_source_ref,
 )
 from schemas.courses import DocumentOut, RenameIn
 from services.ingestion import ingest_document
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_MIME_TYPES = {
     "application/pdf",
@@ -23,6 +27,20 @@ ALLOWED_MIME_TYPES = {
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
 
 router = APIRouter()
+
+
+async def _upload_and_ingest(pool, embed_model, doc_id, file_bytes, r2_key, mime_type, title):
+    """Run R2 upload and ingestion concurrently; a storage failure won't block ingestion."""
+    async def _r2():
+        try:
+            await asyncio.to_thread(upload_to_r2, file_bytes, r2_key, mime_type)
+        except Exception:
+            logger.exception("[%s] R2 upload failed — file may not be stored", title or doc_id)
+
+    await asyncio.gather(
+        _r2(),
+        ingest_document(pool, embed_model, doc_id, file_bytes, mime_type, title),
+    )
 
 
 def _validate_uuid(value: str, field: str) -> None:
@@ -88,22 +106,28 @@ async def add_document(
         await set_document_source_ref(request.app.state.pool, doc_id, r2_key)
         row["source_ref"] = r2_key
 
-        # R2 upload and ingestion run in parallel in the background.
         mime_type = file.content_type
         background_tasks.add_task(
-            asyncio.to_thread, upload_to_r2, file_bytes, r2_key, mime_type
-        )
-        background_tasks.add_task(
-            ingest_document,
+            _upload_and_ingest,
             request.app.state.pool,
             request.app.state.embed_model,
             doc_id,
             file_bytes,
+            r2_key,
             mime_type,
             title.strip(),
         )
 
     return DocumentOut(**row)
+
+
+@router.get("/documents/{document_id}/ingestion-status")
+async def get_ingestion_status(document_id: str, request: Request):
+    _validate_uuid(document_id, "document_id")
+    status = await get_document_ingestion_status(request.app.state.pool, document_id)
+    if status is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"status": status}
 
 
 @router.patch("/documents/{document_id}")

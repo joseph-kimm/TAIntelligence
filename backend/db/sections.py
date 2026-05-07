@@ -22,7 +22,7 @@ async def list_sections_with_documents(pool: asyncpg.Pool, course_id: str) -> li
                                 'id', d.id::text,
                                 'title', d.title,
                                 'ingestionStatus', CASE
-                                    WHEN d.source_type = 'website' THEN 'complete'
+                                    WHEN d.source_type IN ('website', 'summary') THEN 'complete'
                                     WHEN EXISTS (SELECT 1 FROM child_chunks cc WHERE cc.document_id = d.id) THEN 'complete'
                                     ELSE 'pending'
                                 END
@@ -82,6 +82,30 @@ async def delete_section(pool: asyncpg.Pool, section_id: str) -> bool:
             DELETE FROM sections WHERE id = $1::uuid
         """, section_id)
     return result == "DELETE 1"
+
+
+async def get_or_create_summaries_section(pool: asyncpg.Pool, course_id: str) -> str:
+    """Return the section_id of the 'Summaries' section for a course, creating it if needed."""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id::text FROM sections WHERE course_id = $1::uuid AND title = 'Summaries' LIMIT 1",
+            course_id,
+        )
+        if row:
+            return row["id"]
+        row = await conn.fetchrow(
+            """
+            INSERT INTO sections (course_id, title, position)
+            VALUES (
+                $1::uuid,
+                'Summaries',
+                COALESCE((SELECT MAX(position) FROM sections WHERE course_id = $1::uuid), -1) + 1
+            )
+            RETURNING id::text
+            """,
+            course_id,
+        )
+        return row["id"]
 
 
 async def get_r2_keys_for_section(pool: asyncpg.Pool, section_id: str) -> list[str]:

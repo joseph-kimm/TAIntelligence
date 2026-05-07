@@ -56,6 +56,50 @@ async def rename_document(pool: asyncpg.Pool, document_id: str, title: str) -> d
     return dict(row) if row else None
 
 
+async def get_document_ingestion_status(pool: asyncpg.Pool, document_id: str) -> str | None:
+    """Return 'pending' or 'complete', or None if the document doesn't exist."""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("""
+            SELECT
+                source_type,
+                EXISTS (SELECT 1 FROM child_chunks WHERE document_id = d.id) AS has_chunks
+            FROM documents d
+            WHERE id = $1::uuid
+        """, document_id)
+    if row is None:
+        return None
+    if row["source_type"] in ("website", "summary"):
+        return "complete"
+    return "complete" if row["has_chunks"] else "pending"
+
+
+async def get_total_token_count(pool: asyncpg.Pool, document_ids: list[str]) -> int:
+    """Return the sum of token_count for the given document IDs."""
+    async with pool.acquire() as conn:
+        result = await conn.fetchval(
+            "SELECT COALESCE(SUM(token_count), 0) FROM documents WHERE id = ANY($1::uuid[])",
+            document_ids,
+        )
+    return int(result)
+
+
+async def get_parent_chunks_for_documents(
+    pool: asyncpg.Pool, document_ids: list[str]
+) -> list[dict]:
+    """Return parent chunks for the given documents, ordered by document then chunk position."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT document_id::text, chunk_index, text
+            FROM parent_chunks
+            WHERE document_id = ANY($1::uuid[])
+            ORDER BY document_id, chunk_index
+            """,
+            document_ids,
+        )
+    return [dict(row) for row in rows]
+
+
 async def delete_document(pool: asyncpg.Pool, document_id: str) -> bool:
     """Delete a document. Returns True if a row was deleted."""
     async with pool.acquire() as conn:

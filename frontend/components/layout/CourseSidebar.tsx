@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Square, CheckSquare, Minus, Folder, FileText, MoreVertical, Plus, ChevronLeft, ChevronDown, X, Loader2 } from 'lucide-react'
+import { Square, CheckSquare, Minus, Folder, FileText, MoreVertical, Plus, ChevronLeft, ChevronDown, X, Loader2, AlertCircle } from 'lucide-react'
 import styles from './CourseSidebar.module.css'
 import { renameSection, deleteSection, renameDocument, deleteDocument } from '@/lib/actions'
 import type { Section } from '@/types'
@@ -252,19 +252,21 @@ export default function CourseSidebar({
                     const isRenamingDoc = renaming?.id === doc.id && renaming?.type === 'document'
 
                     return (
-                      <div key={doc.id} className={`${styles.documentRow} ${doc.ingestionStatus === 'pending' ? styles.documentRowPending : ''}`}>
+                      <div key={doc.id} className={`${styles.documentRow} ${doc.ingestionStatus === 'pending' ? styles.documentRowPending : ''} ${doc.ingestionStatus === 'failed' ? styles.documentRowFailed : ''}`}>
                         <div className={styles.rowLeft}>
                           <button
                             className={styles.checkBtn}
                             onClick={() => doc.ingestionStatus === 'complete' && toggleDocument(doc.id)}
                             disabled={doc.ingestionStatus !== 'complete'}
-                            aria-label={doc.ingestionStatus === 'pending' ? 'Processing…' : undefined}
+                            aria-label={doc.ingestionStatus === 'pending' ? 'Processing…' : doc.ingestionStatus === 'failed' ? 'Ingestion failed' : undefined}
                           >
                             {doc.ingestionStatus === 'pending'
                               ? <Loader2 size={18} className={styles.spinner} />
-                              : selected.has(doc.id)
-                                ? <CheckSquare size={18} color="var(--primary)" />
-                                : <Square size={18} />}
+                              : doc.ingestionStatus === 'failed'
+                                ? <AlertCircle size={18} color="var(--error, #ef4444)" />
+                                : selected.has(doc.id)
+                                  ? <CheckSquare size={18} color="var(--primary)" />
+                                  : <Square size={18} />}
                           </button>
                           <div className={styles.rowLabel}>
                             <FileText size={18} />

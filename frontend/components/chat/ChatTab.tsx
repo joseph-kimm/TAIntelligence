@@ -66,6 +66,7 @@ export default function ChatTab({
   const [editState, setEditState] = useState<EditState | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isFirstRender = useRef(true);
 
   const activeChat = chats.at(-1);
   const activeHasMessages = (activeChat?.messages.length ?? 0) > 0;
@@ -75,6 +76,11 @@ export default function ChatTab({
   const showNewChatBtn = activeHasMessages && !pendingNewChat && !editState;
 
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+      return;
+    }
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chats]);
 
@@ -140,7 +146,10 @@ export default function ChatTab({
 
             {chat.messages.map((msg) =>
               msg.role === "assistant" ? (
-                <div key={msg.id} className={`${styles.aiMessage}${msg.content === '' && !msg.isError ? ` ${styles.aiMessageLoading}` : ''}`}>
+                <div
+                  key={msg.id}
+                  className={`${styles.aiMessage}${msg.content === "" && !msg.isError ? ` ${styles.aiMessageLoading}` : ""}`}
+                >
                   <div className={styles.aiAvatar}>
                     <GraduationCap
                       size={16}
@@ -211,7 +220,7 @@ export default function ChatTab({
             placeholder={
               editState
                 ? "Edit your message…"
-                : "Ask a question about your notes..."
+                : "Ask a question about your documents..."
             }
             value={input}
             onChange={(e) => setInput(e.target.value)}

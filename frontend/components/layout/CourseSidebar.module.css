@@ -376,6 +376,14 @@
   cursor: default;
 }
 
+.documentRowFailed {
+  opacity: 0.6;
+}
+
+.documentRowFailed .checkBtn {
+  cursor: default;
+}
+
 .spinner {
   animation: spin 1s linear infinite;
   color: var(--on-surface-variant);

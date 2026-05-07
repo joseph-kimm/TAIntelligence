@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.db import close_pool, create_pool
-from routers import chat, courses, documents, sections
+from routers import chat, courses, documents, sections, summaries
 from services.ingestion import create_embed_model
 
 
@@ -35,6 +35,13 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
+
+class _SuppressIngestionStatusLog(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/ingestion-status" not in record.getMessage()
+
+logging.getLogger("uvicorn.access").addFilter(_SuppressIngestionStatusLog())
+
 app = FastAPI(title="T(AI) API", lifespan=lifespan)
 
 # Allow the Next.js frontend to call this API from the browser.
@@ -53,6 +60,7 @@ app.include_router(courses.router, prefix="/api")
 app.include_router(sections.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(summaries.router, prefix="/api")
 
 
 @app.get("/health")

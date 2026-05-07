@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useLayoutEffect, useEffect } from "react";
+import { useState, useLayoutEffect, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import CourseSidebar from "@/components/layout/CourseSidebar";
@@ -18,16 +18,8 @@ import type {
   CourseTab,
   Message,
   Section,
-  SummaryHistoryItem,
+  Summary,
 } from "@/types";
-
-const PLACEHOLDER_HISTORY: SummaryHistoryItem[] = [
-  {
-    id: "h1",
-    title: "Summary",
-    preview: "Summaries will appear here once generated.",
-  },
-];
 
 interface CoursePageClientProps {
   course: Course;
@@ -37,11 +29,12 @@ interface CoursePageClientProps {
 
 export default function CoursePageClient({
   course,
-  sections,
+  sections: initialSections,
   initialChats,
 }: CoursePageClientProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<CourseTab>("chat");
+  const [sections, setSections] = useState<Section[]>(initialSections);
   const [chats, setChats] = useState<Chat[]>(initialChats);
   const [activeChatId, setActiveChatId] = useState<string | null>(
     initialChats.at(-1)?.id ?? null,
@@ -50,21 +43,106 @@ export default function CoursePageClient({
   const [showModal, setShowModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
+  const [summaries, setSummaries] = useState<Summary[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSidebarOpen(window.innerWidth >= 768);
   }, []);
 
-  const hasPendingDocs = sections.some((s) =>
-    s.documents.some((d) => d.ingestionStatus === 'pending')
-  );
+  // Sync sections when the server sends fresh data after router.refresh().
+  // useState(initialSections) only runs at mount; this effect keeps it in sync.
+  useEffect(() => {
+    setSections(initialSections);
+  }, [initialSections]);
+
+  const pendingDocIds = sections
+    .flatMap((s) => s.documents)
+    .filter((d) => d.ingestionStatus === 'pending')
+    .map((d) => d.id)
+    .join(',');
+
+  const pollStartTimesRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
-    if (!hasPendingDocs) return;
-    const id = setInterval(() => router.refresh(), 3000);
-    return () => clearInterval(id);
-  }, [hasPendingDocs, router]);
+    if (!pendingDocIds) return;
+    const ids = pendingDocIds.split(',');
+
+    const now = Date.now();
+    ids.forEach((id) => {
+      if (!pollStartTimesRef.current.has(id)) {
+        pollStartTimesRef.current.set(id, now);
+      }
+    });
+
+    const intervalId = setInterval(async () => {
+      await Promise.all(
+        ids.map(async (docId) => {
+          const elapsed = Date.now() - (pollStartTimesRef.current.get(docId) ?? Date.now());
+          if (elapsed > 2 * 60 * 1000) {
+            pollStartTimesRef.current.delete(docId);
+            setSections((prev) =>
+              prev.map((s) => ({
+                ...s,
+                documents: s.documents.map((d) =>
+                  d.id === docId ? { ...d, ingestionStatus: 'failed' as const } : d
+                ),
+              }))
+            );
+            return;
+          }
+
+          const res = await fetch(`/api/documents/${docId}/ingestion-status`);
+          if (!res.ok) return;
+          const { status } = await res.json();
+          if (status === 'complete') {
+            pollStartTimesRef.current.delete(docId);
+            setSections((prev) =>
+              prev.map((s) => ({
+                ...s,
+                documents: s.documents.map((d) =>
+                  d.id === docId ? { ...d, ingestionStatus: 'complete' as const } : d
+                ),
+              }))
+            );
+          }
+        })
+      );
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [pendingDocIds]);
+
+  useEffect(() => {
+    fetch(`/api/courses/${course.id}/summaries`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: Array<Record<string, unknown>>) =>
+        setSummaries(data.map((s) => ({
+          id: s.id as string,
+          courseId: s.course_id as string,
+          documentId: (s.document_id as string | null) ?? null,
+          title: s.title as string,
+          content: s.content as string,
+          sourceDocumentIds: (s.source_document_ids as string[]) ?? [],
+          createdAt: s.created_at as string,
+        })))
+      )
+      .catch(() => {})
+  }, [course.id]);
+
+  function handleSummaryCreated(summary: Summary) {
+    setSummaries((prev) => [summary, ...prev]);
+    router.refresh();
+  }
+
+  function handleSummaryUpdated(summary: Summary) {
+    setSummaries((prev) => prev.map((s) => (s.id === summary.id ? summary : s)));
+  }
+
+  function handleSummaryDeleted(summaryId: string) {
+    setSummaries((prev) => prev.filter((s) => s.id !== summaryId));
+  }
 
   async function handleSend(text: string) {
     let chatId = activeChatId;
@@ -308,20 +386,14 @@ export default function CoursePageClient({
           )}
           {activeTab === "summarize" && (
             <SummarizeTab
-              history={PLACEHOLDER_HISTORY}
-              activeId="h1"
-              documentTitle="Select a document"
-              documentMeta=""
-              documentContent={
-                <p
-                  style={{
-                    color: "var(--on-surface-variant)",
-                    lineHeight: 1.75,
-                  }}
-                >
-                  Document content will be loaded from the database.
-                </p>
-              }
+              courseId={course.id}
+              selectedDocIds={selectedDocIds}
+              summaries={summaries}
+              isGenerating={isGenerating}
+              onGeneratingChange={setIsGenerating}
+              onSummaryCreated={handleSummaryCreated}
+              onSummaryUpdated={handleSummaryUpdated}
+              onSummaryDeleted={handleSummaryDeleted}
             />
           )}
           {activeTab === "test" && (

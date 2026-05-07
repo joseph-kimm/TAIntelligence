@@ -38,6 +38,16 @@ export interface Chat {
   messages: Message[]
 }
 
+export interface Summary {
+  id: string
+  courseId: string
+  documentId: string | null
+  title: string
+  content: string
+  sourceDocumentIds: string[]
+  createdAt: string
+}
+
 export interface SummaryHistoryItem {
   id: string
   title: string
