@@ -41,7 +41,6 @@ export interface Chat {
 export interface Summary {
   id: string
   courseId: string
-  documentId: string | null
   title: string
   content: string
   currentVersionNumber: number

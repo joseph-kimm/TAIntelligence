@@ -60,15 +60,15 @@ export default function CoursePageClient({
 
   const pendingDocIds = sections
     .flatMap((s) => s.documents)
-    .filter((d) => d.ingestionStatus === 'pending')
+    .filter((d) => d.ingestionStatus === "pending")
     .map((d) => d.id)
-    .join(',');
+    .join(",");
 
   const pollStartTimesRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (!pendingDocIds) return;
-    const ids = pendingDocIds.split(',');
+    const ids = pendingDocIds.split(",");
 
     const now = Date.now();
     ids.forEach((id) => {
@@ -80,16 +80,19 @@ export default function CoursePageClient({
     const intervalId = setInterval(async () => {
       await Promise.all(
         ids.map(async (docId) => {
-          const elapsed = Date.now() - (pollStartTimesRef.current.get(docId) ?? Date.now());
-          if (elapsed > 2 * 60 * 1000) {
+          const elapsed =
+            Date.now() - (pollStartTimesRef.current.get(docId) ?? Date.now());
+          if (elapsed > 3 * 60 * 1000) {
             pollStartTimesRef.current.delete(docId);
             setSections((prev) =>
               prev.map((s) => ({
                 ...s,
                 documents: s.documents.map((d) =>
-                  d.id === docId ? { ...d, ingestionStatus: 'failed' as const } : d
+                  d.id === docId
+                    ? { ...d, ingestionStatus: "failed" as const }
+                    : d,
                 ),
-              }))
+              })),
             );
             return;
           }
@@ -97,18 +100,20 @@ export default function CoursePageClient({
           const res = await fetch(`/api/documents/${docId}/ingestion-status`);
           if (!res.ok) return;
           const { status } = await res.json();
-          if (status === 'complete') {
+          if (status === "complete" || status === "failed") {
             pollStartTimesRef.current.delete(docId);
             setSections((prev) =>
               prev.map((s) => ({
                 ...s,
                 documents: s.documents.map((d) =>
-                  d.id === docId ? { ...d, ingestionStatus: 'complete' as const } : d
+                  d.id === docId
+                    ? { ...d, ingestionStatus: status as "complete" | "failed" }
+                    : d,
                 ),
-              }))
+              })),
             );
           }
-        })
+        }),
       );
     }, 3000);
 
@@ -117,20 +122,22 @@ export default function CoursePageClient({
 
   useEffect(() => {
     fetch(`/api/courses/${course.id}/summaries`)
-      .then((r) => r.ok ? r.json() : [])
+      .then((r) => (r.ok ? r.json() : []))
       .then((data: Array<Record<string, unknown>>) =>
-        setSummaries(data.map((s) => ({
-          id: s.id as string,
-          courseId: s.course_id as string,
-          documentId: (s.document_id as string | null) ?? null,
-          title: s.title as string,
-          content: s.content as string,
-          currentVersionNumber: (s.current_version_number as number) ?? 1,
-          sourceDocumentIds: (s.source_document_ids as string[]) ?? [],
-          createdAt: s.created_at as string,
-        })))
+        setSummaries(
+          data.map((s) => ({
+            id: s.id as string,
+            courseId: s.course_id as string,
+            documentId: (s.document_id as string | null) ?? null,
+            title: s.title as string,
+            content: s.content as string,
+            currentVersionNumber: (s.current_version_number as number) ?? 1,
+            sourceDocumentIds: (s.source_document_ids as string[]) ?? [],
+            createdAt: s.created_at as string,
+          })),
+        ),
       )
-      .catch(() => {})
+      .catch(() => {});
   }, [course.id]);
 
   function handleSummaryCreated(summary: Summary) {
@@ -139,7 +146,9 @@ export default function CoursePageClient({
   }
 
   function handleSummaryUpdated(summary: Summary) {
-    setSummaries((prev) => prev.map((s) => (s.id === summary.id ? summary : s)));
+    setSummaries((prev) =>
+      prev.map((s) => (s.id === summary.id ? summary : s)),
+    );
   }
 
   function handleSummaryDeleted(summaryId: string) {
@@ -167,8 +176,18 @@ export default function CoursePageClient({
               ...c,
               messages: [
                 ...c.messages,
-                { id: tempUserId, role: "user" as const, content: text, chunkIds: [] },
-                { id: tempAssistantId, role: "assistant" as const, content: "", chunkIds: [] },
+                {
+                  id: tempUserId,
+                  role: "user" as const,
+                  content: text,
+                  chunkIds: [],
+                },
+                {
+                  id: tempAssistantId,
+                  role: "assistant" as const,
+                  content: "",
+                  chunkIds: [],
+                },
               ],
             }
           : c,
@@ -185,7 +204,12 @@ export default function CoursePageClient({
       setChats((prev) =>
         prev.map((c) =>
           c.id === chatId
-            ? { ...c, messages: c.messages.filter((m) => m.id !== tempUserId && m.id !== tempAssistantId) }
+            ? {
+                ...c,
+                messages: c.messages.filter(
+                  (m) => m.id !== tempUserId && m.id !== tempAssistantId,
+                ),
+              }
             : c,
         ),
       );
@@ -198,7 +222,12 @@ export default function CoursePageClient({
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId
-              ? { ...c, messages: c.messages.map((m) => (m.id === tempUserId ? msg : m)) }
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempUserId ? msg : m,
+                  ),
+                }
               : c,
           ),
         );
@@ -222,7 +251,12 @@ export default function CoursePageClient({
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId
-              ? { ...c, messages: c.messages.map((m) => (m.id === tempAssistantId ? msg : m)) }
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempAssistantId ? msg : m,
+                  ),
+                }
               : c,
           ),
         );
@@ -260,7 +294,11 @@ export default function CoursePageClient({
     });
   }
 
-  async function handleEditMessage(chatId: string, messageId: string, content: string) {
+  async function handleEditMessage(
+    chatId: string,
+    messageId: string,
+    content: string,
+  ) {
     const tempUserId = `temp-user-${Date.now()}`;
     const tempAssistantId = `temp-assistant-${Date.now()}`;
 
@@ -273,7 +311,12 @@ export default function CoursePageClient({
           messages: [
             ...c.messages.slice(0, cutIndex),
             { id: tempUserId, role: "user" as const, content, chunkIds: [] },
-            { id: tempAssistantId, role: "assistant" as const, content: "", chunkIds: [] },
+            {
+              id: tempAssistantId,
+              role: "assistant" as const,
+              content: "",
+              chunkIds: [],
+            },
           ],
         };
       }),
@@ -289,7 +332,12 @@ export default function CoursePageClient({
       setChats((prev) =>
         prev.map((c) =>
           c.id === chatId
-            ? { ...c, messages: c.messages.filter((m) => m.id !== tempUserId && m.id !== tempAssistantId) }
+            ? {
+                ...c,
+                messages: c.messages.filter(
+                  (m) => m.id !== tempUserId && m.id !== tempAssistantId,
+                ),
+              }
             : c,
         ),
       );
@@ -302,7 +350,12 @@ export default function CoursePageClient({
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId
-              ? { ...c, messages: c.messages.map((m) => (m.id === tempUserId ? msg : m)) }
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempUserId ? msg : m,
+                  ),
+                }
               : c,
           ),
         );
@@ -326,7 +379,12 @@ export default function CoursePageClient({
         setChats((prev) =>
           prev.map((c) =>
             c.id === chatId
-              ? { ...c, messages: c.messages.map((m) => (m.id === tempAssistantId ? msg : m)) }
+              ? {
+                  ...c,
+                  messages: c.messages.map((m) =>
+                    m.id === tempAssistantId ? msg : m,
+                  ),
+                }
               : c,
           ),
         );

@@ -522,7 +522,6 @@ function toSummary(raw: Record<string, unknown>): Summary {
   return {
     id: raw.id as string,
     courseId: raw.course_id as string,
-    documentId: (raw.document_id as string | null) ?? null,
     title: raw.title as string,
     content: raw.content as string,
     currentVersionNumber: (raw.current_version_number as number) ?? 1,

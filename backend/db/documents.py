@@ -37,6 +37,14 @@ async def update_document_token_count(pool: asyncpg.Pool, document_id: str, toke
         """, token_count, document_id)
 
 
+async def mark_document_ingestion_failed(pool: asyncpg.Pool, document_id: str) -> None:
+    """Mark a document as failed. Uses token_count = -1 as a sentinel value."""
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            UPDATE documents SET token_count = -1 WHERE id = $1::uuid
+        """, document_id)
+
+
 async def set_document_source_ref(pool: asyncpg.Pool, doc_id: str, source_ref: str) -> None:
     """Update the source_ref on a document after the file has been uploaded to R2."""
     async with pool.acquire() as conn:
@@ -57,20 +65,25 @@ async def rename_document(pool: asyncpg.Pool, document_id: str, title: str) -> d
 
 
 async def get_document_ingestion_status(pool: asyncpg.Pool, document_id: str) -> str | None:
-    """Return 'pending' or 'complete', or None if the document doesn't exist."""
+    """Return 'pending', 'complete', or 'failed', or None if the document doesn't exist."""
     async with pool.acquire() as conn:
         row = await conn.fetchrow("""
             SELECT
                 source_type,
+                token_count,
                 EXISTS (SELECT 1 FROM child_chunks WHERE document_id = d.id) AS has_chunks
             FROM documents d
             WHERE id = $1::uuid
         """, document_id)
     if row is None:
         return None
-    if row["source_type"] in ("website", "summary"):
+    if row["source_type"] == "website":
         return "complete"
-    return "complete" if row["has_chunks"] else "pending"
+    if row["has_chunks"]:
+        return "complete"
+    if row["token_count"] == -1:
+        return "failed"
+    return "pending"
 
 
 async def get_total_token_count(pool: asyncpg.Pool, document_ids: list[str]) -> int:

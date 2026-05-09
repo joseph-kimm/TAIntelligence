@@ -12,7 +12,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from pypdf import PdfReader
 from core.config import settings
 from db.chunks import bulk_insert_parent_child_chunks
-from db.documents import update_document_token_count
+from db.documents import mark_document_ingestion_failed, update_document_token_count
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +29,13 @@ def extract_text(file_bytes: bytes, mime_type: str) -> str:
     """Pull plain text out of PDF, DOCX, or TXT bytes."""
     if mime_type == "application/pdf":
         reader = PdfReader(io.BytesIO(file_bytes))
-        return "\n\n".join(page.extract_text() or "" for page in reader.pages)
-
-    if mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        text = "\n\n".join(page.extract_text() or "" for page in reader.pages)
+    elif mime_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
         doc = DocxDocument(io.BytesIO(file_bytes))
-        return "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
-
-    return file_bytes.decode("utf-8", errors="replace")
+        text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
+    else:
+        text = file_bytes.decode("utf-8", errors="replace")
+    return text.replace("\x00", "")
 
 def chunk_text(text: str):
     """Split text into 350-token windows with 60-token overlap."""
@@ -115,3 +115,7 @@ async def ingest_document(
 
     except Exception:
         logger.exception("[%s] Ingestion failed after %.1fs", label, time.perf_counter() - t_start)
+        try:
+            await mark_document_ingestion_failed(pool, document_id)
+        except Exception:
+            logger.exception("[%s] Failed to mark document as failed", label)

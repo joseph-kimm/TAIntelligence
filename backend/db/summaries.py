@@ -4,7 +4,6 @@ import asyncpg
 _SUMMARY_COLS = """
     s.id::text,
     s.course_id::text,
-    s.document_id::text,
     s.title,
     sv.content,
     sv.version_number AS current_version_number,
@@ -24,7 +23,6 @@ _LATEST_VERSION_JOIN = """
 async def create_summary(
     pool: asyncpg.Pool,
     course_id: str,
-    document_id: str,
     title: str,
     content: str,
     source_document_ids: list[str],
@@ -32,13 +30,13 @@ async def create_summary(
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO summaries (course_id, document_id, title, source_document_ids)
-            VALUES ($1::uuid, $2::uuid, $3, $4::uuid[])
-            RETURNING id::text, course_id::text, document_id::text, title,
+            INSERT INTO summaries (course_id, title, source_document_ids)
+            VALUES ($1::uuid, $2, $3::uuid[])
+            RETURNING id::text, course_id::text, title,
                       ARRAY(SELECT unnest(source_document_ids)::text) AS source_document_ids,
                       created_at
             """,
-            course_id, document_id, title, source_document_ids,
+            course_id, title, source_document_ids,
         )
         summary = dict(row)
         await conn.execute(
@@ -82,14 +80,14 @@ async def get_summary(pool: asyncpg.Pool, summary_id: str) -> dict | None:
     return dict(row) if row else None
 
 
-async def delete_summary(pool: asyncpg.Pool, summary_id: str) -> str | None:
-    """Delete the summary and return its document_id (if any) so the caller can clean up."""
+async def delete_summary(pool: asyncpg.Pool, summary_id: str) -> bool:
+    """Delete the summary. Returns True if a row was deleted."""
     async with pool.acquire() as conn:
-        row = await conn.fetchrow(
-            "DELETE FROM summaries WHERE id = $1::uuid RETURNING document_id::text",
+        result = await conn.execute(
+            "DELETE FROM summaries WHERE id = $1::uuid",
             summary_id,
         )
-    return row["document_id"] if row else None
+    return result == "DELETE 1"
 
 
 async def create_summary_version(

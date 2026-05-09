@@ -4,8 +4,6 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request
 
 from core.config import settings
-from db.documents import create_document, delete_document, update_document_token_count
-from db.sections import get_or_create_summaries_section
 from db.summaries import (
     create_summary,
     create_summary_version,
@@ -51,24 +49,9 @@ async def create_course_summary(course_id: str, body: SummarizeIn, request: Requ
         options=options,
     )
 
-    section_id = await get_or_create_summaries_section(pool, course_id)
-
-    import tiktoken
-    token_count = len(tiktoken.get_encoding("cl100k_base").encode(result["content"]))
-
-    doc = await create_document(
-        pool,
-        section_id=section_id,
-        title=result["title"],
-        source_type="summary",
-        source_ref=None,
-    )
-    await update_document_token_count(pool, doc["id"], token_count)
-
     summary = await create_summary(
         pool,
         course_id=course_id,
-        document_id=doc["id"],
         title=result["title"],
         content=result["content"],
         source_document_ids=body.document_ids,
@@ -130,8 +113,6 @@ async def get_version_content(summary_id: str, version_id: str, request: Request
 async def remove_summary(summary_id: str, request: Request):
     _validate_uuid(summary_id, "summary_id")
     pool = request.app.state.pool
-    document_id = await delete_summary(pool, summary_id)
-    if document_id is None:
+    found = await delete_summary(pool, summary_id)
+    if not found:
         raise HTTPException(status_code=404, detail="Summary not found")
-    if document_id:
-        await delete_document(pool, document_id)
