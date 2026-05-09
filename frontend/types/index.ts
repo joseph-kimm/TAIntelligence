@@ -44,14 +44,37 @@ export interface Summary {
   documentId: string | null
   title: string
   content: string
+  currentVersionNumber: number
   sourceDocumentIds: string[]
   createdAt: string
 }
 
-export interface SummaryHistoryItem {
+export interface SummaryVersion {
   id: string
-  title: string
-  preview: string
+  summaryId: string
+  versionNumber: number
+  createdAt: string
 }
 
+export interface SummaryVersionDetail extends SummaryVersion {
+  content: string
+}
+
+
 export type CourseTab = 'chat' | 'summarize' | 'test'
+
+export type DetailLevel = 0 | 1 | 2 | 3 | 4 | 5
+export type AudienceLevel = 0 | 1 | 2 | 3
+export type SummaryStyle = 'bullet_points' | 'paragraph' | 'table' | 'structured' | 'qa'
+export type SummaryTone = 'neutral' | 'academic' | 'conversational'
+export type FocusEmphasis = 'concepts' | 'examples' | 'arguments' | 'timeline' | 'formulas'
+
+export interface SummaryOptions {
+  detailLevel: DetailLevel
+  lengthAuto: boolean
+  lengthMinutes: number
+  audience: AudienceLevel
+  style: SummaryStyle | null
+  tone: SummaryTone | null
+  focusEmphasis: FocusEmphasis[]
+}

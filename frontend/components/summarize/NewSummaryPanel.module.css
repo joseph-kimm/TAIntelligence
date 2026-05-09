@@ -1,0 +1,83 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 3rem 1rem 2rem;
+  width: 100%;
+}
+
+.top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.heading {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--on-surface);
+}
+
+.meta {
+  font-size: 0.875rem;
+  color: var(--on-surface-variant);
+}
+
+.selectedDocs {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.375rem;
+  max-width: 28rem;
+}
+
+.selectedDoc {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--on-surface-variant);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 15%, transparent);
+  border-radius: 9999px;
+  padding: 0.2rem 0.625rem;
+  white-space: nowrap;
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.generateBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  width: 100%;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--primary) 25%, transparent);
+  transition: background 0.15s;
+}
+
+.generateBtn:hover:not(:disabled) { background: var(--primary-dim, var(--primary)); }
+
+.generateBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinIcon {
+  animation: spin 1s linear infinite;
+}

@@ -3,7 +3,6 @@ CREATE TABLE summaries (
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
   document_id UUID REFERENCES documents(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
-  content TEXT NOT NULL,
   source_document_ids UUID[] NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

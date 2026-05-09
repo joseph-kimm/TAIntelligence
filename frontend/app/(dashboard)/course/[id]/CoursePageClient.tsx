@@ -16,6 +16,7 @@ import type {
   Chat,
   Course,
   CourseTab,
+  Document,
   Message,
   Section,
   Summary,
@@ -124,6 +125,7 @@ export default function CoursePageClient({
           documentId: (s.document_id as string | null) ?? null,
           title: s.title as string,
           content: s.content as string,
+          currentVersionNumber: (s.current_version_number as number) ?? 1,
           sourceDocumentIds: (s.source_document_ids as string[]) ?? [],
           createdAt: s.created_at as string,
         })))
@@ -389,6 +391,7 @@ export default function CoursePageClient({
               courseId={course.id}
               selectedDocIds={selectedDocIds}
               summaries={summaries}
+              documents={sections.flatMap((s): Document[] => s.documents)}
               isGenerating={isGenerating}
               onGeneratingChange={setIsGenerating}
               onSummaryCreated={handleSummaryCreated}

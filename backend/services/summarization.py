@@ -4,6 +4,7 @@ import asyncio
 import json
 import logging
 import re
+from dataclasses import dataclass, field
 
 from db.documents import get_parent_chunks_for_documents, get_total_token_count
 from services.llm import collect_llm_response
@@ -11,6 +12,79 @@ from services.llm import collect_llm_response
 logger = logging.getLogger(__name__)
 
 BATCH_SIZE = 20
+
+_DETAIL_INSTRUCTIONS = {
+    1: "Write a very brief TL;DR-style summary — just the most essential points.",
+    2: "Write a concise summary suitable for a quick read.",
+    3: "Write a balanced summary covering the main points.",
+    4: "Write a thorough, in-depth summary.",
+    5: "Write an exhaustive summary covering all details and nuances.",
+}
+
+_AUDIENCE_INSTRUCTIONS = {
+    1: "Explain as if to a 5-year-old (ELI5): use very simple language, analogies, and avoid jargon.",
+    2: "Write for a high school student: clear language, some technical terms explained.",
+    3: "Write for a college student: assume foundational knowledge, use appropriate terminology.",
+}
+
+_STYLE_INSTRUCTIONS = {
+    "bullet_points": "Format the content primarily as bullet points.",
+    "paragraph": "Write in flowing prose paragraphs without bullet points.",
+    "table": "Organize information into tables where appropriate.",
+    "structured": "Use clear headers with paragraphs under each section.",
+    "qa": "Format the content as question-and-answer pairs.",
+}
+
+_TONE_INSTRUCTIONS = {
+    "neutral": "Use a neutral, objective tone.",
+    "academic": "Use a formal, academic tone with precise terminology.",
+    "conversational": "Use a friendly, conversational tone.",
+}
+
+_FOCUS_LABELS = {
+    "concepts": "key concepts and definitions",
+    "examples": "examples and case studies",
+    "arguments": "arguments and evidence",
+    "timeline": "timeline and chronology",
+    "formulas": "formulas and equations",
+}
+
+
+@dataclass
+class SummaryOptions:
+    detail_level: int = 0
+    length_auto: bool = True
+    length_minutes: int = 5
+    audience: int = 0
+    style: str | None = None
+    tone: str | None = None
+    focus_emphasis: list[str] = field(default_factory=list)
+
+
+def _build_options_prompt(options: SummaryOptions) -> str:
+    parts = []
+
+    if options.detail_level in _DETAIL_INSTRUCTIONS:
+        parts.append(_DETAIL_INSTRUCTIONS[options.detail_level])
+
+    if not options.length_auto:
+        words = options.length_minutes * 150
+        parts.append(f"Aim for approximately a {options.length_minutes}-minute read (~{words} words).")
+
+    if options.audience in _AUDIENCE_INSTRUCTIONS:
+        parts.append(_AUDIENCE_INSTRUCTIONS[options.audience])
+
+    if options.style and options.style in _STYLE_INSTRUCTIONS:
+        parts.append(_STYLE_INSTRUCTIONS[options.style])
+
+    if options.tone and options.tone in _TONE_INSTRUCTIONS:
+        parts.append(_TONE_INSTRUCTIONS[options.tone])
+
+    focus_labels = [_FOCUS_LABELS[f] for f in options.focus_emphasis if f in _FOCUS_LABELS]
+    if focus_labels:
+        parts.append(f"Focus especially on: {', '.join(focus_labels)}.")
+
+    return " ".join(parts)
 
 
 def _parse_json_response(raw: str) -> dict:
@@ -51,26 +125,56 @@ async def _call_final_summary(
     openrouter_key: str,
     model: str,
     is_combining: bool,
+    options_prompt: str,
 ) -> dict:
     system = (
         "You are an expert academic summarizer. "
         "Respond ONLY with valid JSON — no extra text before or after."
     )
     if is_combining:
-        instruction = (
-            "You are given partial summaries of course documents. "
-            "Combine them into a single comprehensive, well-structured final summary."
-        )
+        instruction = "You are given partial summaries of course documents. Combine them into a single comprehensive, well-structured final summary."
     else:
         instruction = "Summarize the following course documents into a comprehensive, well-structured summary."
+
+    if options_prompt:
+        instruction = f"{instruction} {options_prompt}"
 
     user = (
         f"{instruction}\n\n"
         "Respond ONLY with this JSON format:\n"
         '{"title": "...", "content": "..."}\n\n'
         "- title: a concise 5-10 word title describing the subject matter\n"
-        "- content: a thorough summary using markdown (headers, bullets) for clarity\n\n"
+        "- content: a thorough summary using markdown for clarity\n\n"
         f"{'Partial summaries' if is_combining else 'Documents'}:\n{text}"
+    )
+    raw = await collect_llm_response(
+        openrouter_key=openrouter_key,
+        model=model,
+        messages=[{"role": "user", "content": user}],
+        system_prompt=system,
+    )
+    return _parse_json_response(raw)
+
+
+async def run_refinement(
+    existing_content: str,
+    instruction: str,
+    openrouter_key: str,
+    model: str,
+) -> dict:
+    """Refine an existing summary given a user instruction. Returns {title: str, content: str}."""
+    system = (
+        "You are an expert academic summarizer. "
+        "Respond ONLY with valid JSON — no extra text before or after."
+    )
+    user = (
+        "Here is an existing summary:\n\n"
+        f"{existing_content}\n\n"
+        f"The user wants the following change: {instruction}\n\n"
+        "Revise the summary accordingly. Respond ONLY with this JSON format:\n"
+        '{"title": "...", "content": "..."}\n\n'
+        "- title: a concise 5-10 word title (update if the revision warrants it)\n"
+        "- content: the revised summary using markdown (headers, bullets) for clarity"
     )
     raw = await collect_llm_response(
         openrouter_key=openrouter_key,
@@ -87,8 +191,15 @@ async def run_summarization(
     openrouter_key: str,
     model: str,
     context_limit: int,
+    options: SummaryOptions | None = None,
 ) -> dict:
     """Orchestrate summarization. Returns {title: str, content: str}."""
+    if options is None:
+        options = SummaryOptions()
+
+    options_prompt = _build_options_prompt(options)
+    logger.info("Summary options prompt: %r", options_prompt or "(default)")
+
     total_tokens = await get_total_token_count(pool, document_ids)
     threshold = context_limit * 0.6
     logger.info(
@@ -105,7 +216,7 @@ async def run_summarization(
     if total_tokens < threshold:
         logger.info("Single-prompt path (%d tokens < %.0f threshold)", total_tokens, threshold)
         combined = "\n\n---\n\n".join(texts)
-        return await _call_final_summary(combined, openrouter_key, model, is_combining=False)
+        return await _call_final_summary(combined, openrouter_key, model, is_combining=False, options_prompt=options_prompt)
 
     batches = [texts[i:i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
     logger.info("Batch path: %d chunks/batch, %d batches (parallel)", BATCH_SIZE, len(batches))
@@ -117,4 +228,4 @@ async def run_summarization(
     combined_batches = "\n\n---\n\n".join(
         f"[Batch {i + 1}]\n{s}" for i, s in enumerate(batch_summaries)
     )
-    return await _call_final_summary(combined_batches, openrouter_key, model, is_combining=True)
+    return await _call_final_summary(combined_batches, openrouter_key, model, is_combining=True, options_prompt=options_prompt)

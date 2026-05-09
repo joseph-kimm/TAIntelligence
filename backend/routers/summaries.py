@@ -2,25 +2,25 @@ import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
 
 from core.config import settings
 from db.documents import create_document, delete_document, update_document_token_count
 from db.sections import get_or_create_summaries_section
-from db.summaries import create_summary, delete_summary, get_summary, list_summaries_by_course, update_summary
-from services.summarization import run_summarization
+from db.summaries import (
+    create_summary,
+    create_summary_version,
+    delete_summary,
+    get_summary,
+    get_summary_version_content,
+    list_summaries_by_course,
+    list_summary_versions,
+)
+from schemas.summaries import RefineIn, SummarizeIn
+from services.summarization import SummaryOptions, run_refinement, run_summarization
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-class SummarizeIn(BaseModel):
-    document_ids: list[str]
-
-
-class RefineIn(BaseModel):
-    instruction: str
 
 
 def _validate_uuid(value: str, field: str) -> None:
@@ -41,12 +41,14 @@ async def create_course_summary(course_id: str, body: SummarizeIn, request: Requ
     pool = request.app.state.pool
 
     logger.info("Starting summarization for course=%s docs=%s", course_id, body.document_ids)
+    options = SummaryOptions(**body.options.model_dump())
     result = await run_summarization(
         pool=pool,
         document_ids=body.document_ids,
         openrouter_key=settings.openrouter_key,
         model=settings.openrouter_model,
         context_limit=settings.model_context_limit,
+        options=options,
     )
 
     section_id = await get_or_create_summaries_section(pool, course_id)
@@ -93,32 +95,35 @@ async def refine_summary(summary_id: str, body: RefineIn, request: Request):
     if not existing:
         raise HTTPException(status_code=404, detail="Summary not found")
 
-    from services.llm import collect_llm_response
-    from services.summarization import _parse_json_response
-
-    system = (
-        "You are an expert academic summarizer. "
-        "Respond ONLY with valid JSON — no extra text before or after."
-    )
-    user = (
-        "Here is an existing summary:\n\n"
-        f"{existing['content']}\n\n"
-        f"The user wants the following change: {body.instruction.strip()}\n\n"
-        "Revise the summary accordingly. Respond ONLY with this JSON format:\n"
-        '{"title": "...", "content": "..."}\n\n'
-        "- title: a concise 5-10 word title (update if the revision warrants it)\n"
-        "- content: the revised summary using markdown (headers, bullets) for clarity"
-    )
-    raw = await collect_llm_response(
+    result = await run_refinement(
+        existing_content=existing["content"],
+        instruction=body.instruction.strip(),
         openrouter_key=settings.openrouter_key,
         model=settings.openrouter_model,
-        messages=[{"role": "user", "content": user}],
-        system_prompt=system,
     )
-    result = _parse_json_response(raw)
-    updated = await update_summary(pool, summary_id, result["title"], result["content"])
-    logger.info("Summary refined: id=%s title=%r", summary_id, result["title"])
+    await create_summary_version(pool, summary_id, result["content"])
+    updated = await get_summary(pool, summary_id)
+    logger.info("Summary refined: id=%s version=%d", summary_id, updated["current_version_number"])
     return updated
+
+
+@router.get("/summaries/{summary_id}/versions")
+async def get_summary_versions(summary_id: str, request: Request):
+    _validate_uuid(summary_id, "summary_id")
+    versions = await list_summary_versions(request.app.state.pool, summary_id)
+    if not versions:
+        raise HTTPException(status_code=404, detail="Summary not found")
+    return versions
+
+
+@router.get("/summaries/{summary_id}/versions/{version_id}")
+async def get_version_content(summary_id: str, version_id: str, request: Request):
+    _validate_uuid(summary_id, "summary_id")
+    _validate_uuid(version_id, "version_id")
+    version = await get_summary_version_content(request.app.state.pool, summary_id, version_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+    return version
 
 
 @router.delete("/summaries/{summary_id}", status_code=204)
