@@ -48,10 +48,13 @@ export interface Summary {
   createdAt: string
 }
 
+export type EditType = 'structure' | 'content' | 'initial'
+
 export interface SummaryVersion {
   id: string
   summaryId: string
   versionNumber: number
+  editType: EditType
   createdAt: string
 }
 
@@ -63,7 +66,7 @@ export interface SummaryVersionDetail extends SummaryVersion {
 export type CourseTab = 'chat' | 'summarize' | 'test'
 
 export type DetailLevel = 0 | 1 | 2 | 3 | 4 | 5
-export type AudienceLevel = 0 | 1 | 2 | 3
+export type AudienceLevel = 0 | 1 | 2 | 3 | 4
 export type SummaryStyle = 'bullet_points' | 'paragraph' | 'table' | 'structured' | 'qa'
 export type SummaryTone = 'neutral' | 'academic' | 'conversational'
 export type FocusEmphasis = 'concepts' | 'examples' | 'arguments' | 'timeline' | 'formulas'

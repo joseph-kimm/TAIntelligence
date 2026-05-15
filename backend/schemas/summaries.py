@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import Literal
+
+from pydantic import BaseModel, field_validator
 
 
 class SummaryOptionsIn(BaseModel):
@@ -18,3 +20,15 @@ class SummarizeIn(BaseModel):
 
 class RefineIn(BaseModel):
     instruction: str
+
+
+class EditSummaryIn(BaseModel):
+    instruction: str
+    edit_type: Literal["structure", "content"] = "structure"
+
+    @field_validator("instruction")
+    @classmethod
+    def not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("instruction must not be empty")
+        return v.strip()

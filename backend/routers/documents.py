@@ -10,10 +10,11 @@ from db.documents import (
     delete_document,
     get_document,
     get_document_ingestion_status,
+    move_document,
     rename_document,
     set_document_source_ref,
 )
-from schemas.courses import DocumentOut, RenameIn
+from schemas.courses import DocumentOut, MoveDocumentIn, RenameIn
 from services.ingestion import ingest_document
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,17 @@ async def update_document_name(document_id: str, body: RenameIn, request: Reques
     """Rename a document."""
     _validate_uuid(document_id, "document_id")
     row = await rename_document(request.app.state.pool, document_id, body.title.strip())
+    if row is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return row
+
+
+@router.patch("/documents/{document_id}/move")
+async def move_document_to_section(document_id: str, body: MoveDocumentIn, request: Request):
+    """Move a document to a different section."""
+    _validate_uuid(document_id, "document_id")
+    _validate_uuid(body.section_id, "section_id")
+    row = await move_document(request.app.state.pool, document_id, body.section_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Document not found")
     return row

@@ -14,6 +14,11 @@ class RenameIn(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
 
 
+class MoveDocumentIn(BaseModel):
+    """Request body for moving a document to a different section."""
+    section_id: str
+
+
 class SectionIn(BaseModel):
     """Request body for creating a section."""
     course_id: str

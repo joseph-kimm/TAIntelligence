@@ -41,8 +41,8 @@ async def create_summary(
         summary = dict(row)
         await conn.execute(
             """
-            INSERT INTO summary_versions (summary_id, version_number, content)
-            VALUES ($1::uuid, 1, $2)
+            INSERT INTO summary_versions (summary_id, version_number, content, edit_type, source_chunk_ids)
+            VALUES ($1::uuid, 1, $2, 'initial', '{}')
             """,
             summary["id"], content,
         )
@@ -94,20 +94,25 @@ async def create_summary_version(
     pool: asyncpg.Pool,
     summary_id: str,
     content: str,
+    edit_type: str = "initial",
+    source_chunk_ids: list[str] | None = None,
 ) -> dict:
+    chunk_ids = source_chunk_ids or []
     async with pool.acquire() as conn:
         row = await conn.fetchrow(
             """
-            INSERT INTO summary_versions (summary_id, version_number, content)
+            INSERT INTO summary_versions (summary_id, version_number, content, edit_type, source_chunk_ids)
             VALUES (
               $1::uuid,
               (SELECT COALESCE(MAX(version_number), 0) + 1
                FROM summary_versions WHERE summary_id = $1::uuid),
-              $2
+              $2,
+              $3,
+              $4::uuid[]
             )
             RETURNING id::text, summary_id::text, version_number, created_at
             """,
-            summary_id, content,
+            summary_id, content, edit_type, chunk_ids,
         )
     return dict(row)
 
@@ -116,7 +121,7 @@ async def list_summary_versions(pool: asyncpg.Pool, summary_id: str) -> list[dic
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT id::text, summary_id::text, version_number, created_at
+            SELECT id::text, summary_id::text, version_number, edit_type, created_at
             FROM summary_versions
             WHERE summary_id = $1::uuid
             ORDER BY version_number DESC

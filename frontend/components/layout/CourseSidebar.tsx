@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Square, CheckSquare, Minus, Folder, FileText, MoreVertical, Plus, ChevronLeft, ChevronDown, X, Loader2, AlertCircle } from 'lucide-react'
 import styles from './CourseSidebar.module.css'
-import { renameSection, deleteSection, renameDocument, deleteDocument } from '@/lib/actions'
+import { renameSection, deleteSection, renameDocument, deleteDocument, moveDocument } from '@/lib/actions'
 import type { Section } from '@/types'
 
 interface CourseSidebarProps {
@@ -52,6 +52,7 @@ export default function CourseSidebar({
   const [confirming, setConfirming] = useState<MenuTarget | null>(null)
   const [renaming, setRenaming] = useState<MenuTarget | null>(null)
   const [renameValue, setRenameValue] = useState('')
+  const [movingDoc, setMovingDoc] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
 
@@ -65,6 +66,7 @@ export default function CourseSidebar({
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setOpenMenu(null)
         setConfirming(null)
+        setMovingDoc(null)
       }
     }
     document.addEventListener('mousedown', handleClick)
@@ -136,6 +138,13 @@ export default function CourseSidebar({
     else await deleteDocument(target.id)
     setOpenMenu(null)
     setConfirming(null)
+    router.refresh()
+  }
+
+  async function commitMove(docId: string, sectionId: string) {
+    await moveDocument(docId, sectionId)
+    setOpenMenu(null)
+    setMovingDoc(null)
     router.refresh()
   }
 
@@ -250,6 +259,8 @@ export default function CourseSidebar({
                     const isDocMenuOpen = openMenu?.id === doc.id && openMenu?.type === 'document'
                     const isDocConfirming = confirming?.id === doc.id && confirming?.type === 'document'
                     const isRenamingDoc = renaming?.id === doc.id && renaming?.type === 'document'
+                    const isMovingDoc = movingDoc === doc.id
+                    const otherSections = sections.filter((s) => s.id !== section.id)
 
                     return (
                       <div key={doc.id} className={`${styles.documentRow} ${doc.ingestionStatus === 'pending' ? styles.documentRowPending : ''} ${doc.ingestionStatus === 'failed' ? styles.documentRowFailed : ''}`}>
@@ -303,9 +314,22 @@ export default function CourseSidebar({
                                     <button className={styles.confirmNo} onClick={() => setConfirming(null)}>Cancel</button>
                                   </div>
                                 </div>
+                              ) : isMovingDoc ? (
+                                <>
+                                  <div className={styles.dropdownSectionLabel}>Move to section</div>
+                                  {otherSections.length === 0 ? (
+                                    <span className={styles.dropdownEmpty}>No other sections</span>
+                                  ) : otherSections.map((s) => (
+                                    <button key={s.id} className={styles.dropdownItem} onClick={() => commitMove(doc.id, s.id)}>
+                                      {s.title}
+                                    </button>
+                                  ))}
+                                  <button className={styles.dropdownItem} onClick={() => setMovingDoc(null)}>Cancel</button>
+                                </>
                               ) : (
                                 <>
                                   <button className={styles.dropdownItem} onClick={() => startRename(docTarget, doc.title)}>Rename</button>
+                                  <button className={styles.dropdownItem} onClick={() => setMovingDoc(doc.id)}>Move to...</button>
                                   <button className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`} onClick={() => setConfirming(docTarget)}>Delete</button>
                                 </>
                               )}

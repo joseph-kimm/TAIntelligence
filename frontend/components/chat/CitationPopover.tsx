@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
+import 'katex/dist/katex.min.css'
 import styles from './CitationPopover.module.css'
 import chatStyles from './ChatTab.module.css'
 import type { ChunkCitation } from '@/types'
@@ -10,6 +13,12 @@ import type { ChunkCitation } from '@/types'
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function normalizeLatex(content: string): string {
+  return content
+    .replace(/\\\[/g, '$$').replace(/\\\]/g, '$$')
+    .replace(/\\\(/g, '$').replace(/\\\)/g, '$')
+}
 
 function prepareContent(content: string, citations: ChunkCitation[]) {
   const citationMap = new Map<string, ChunkCitation>()
@@ -152,11 +161,12 @@ export function CitationMessage({ content, citations }: CitationMessageProps) {
   return (
     <div className={chatStyles.aiText}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
         components={markdownComponents}
         urlTransform={(url) => (url.startsWith('cite://') ? url : defaultUrlTransform(url))}
       >
-        {processedContent}
+        {normalizeLatex(processedContent)}
       </ReactMarkdown>
       {popover && (
         <CitationCard

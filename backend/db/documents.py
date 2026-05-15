@@ -29,12 +29,12 @@ async def create_document(
     return dict(row)
 
 
-async def update_document_token_count(pool: asyncpg.Pool, document_id: str, token_count: int) -> None:
-    """Set the token count on a document after ingestion completes."""
+async def update_document_after_ingestion(pool: asyncpg.Pool, document_id: str, token_count: int, full_text: str) -> None:
+    """Set token_count and full_text on a document after ingestion completes."""
     async with pool.acquire() as conn:
         await conn.execute("""
-            UPDATE documents SET token_count = $1 WHERE id = $2::uuid
-        """, token_count, document_id)
+            UPDATE documents SET token_count = $1, full_text = $2 WHERE id = $3::uuid
+        """, token_count, full_text, document_id)
 
 
 async def mark_document_ingestion_failed(pool: asyncpg.Pool, document_id: str) -> None:
@@ -111,6 +111,31 @@ async def get_parent_chunks_for_documents(
             document_ids,
         )
     return [dict(row) for row in rows]
+
+
+async def get_full_texts_for_documents(
+    pool: asyncpg.Pool, document_ids: list[str]
+) -> list[dict]:
+    """Return id, title, full_text for the given documents, ordered by title."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("""
+            SELECT id::text, title, full_text
+            FROM documents
+            WHERE id = ANY($1::uuid[])
+            ORDER BY title
+        """, document_ids)
+    return [dict(row) for row in rows]
+
+
+async def move_document(pool: asyncpg.Pool, document_id: str, section_id: str) -> dict | None:
+    """Move a document to a different section. Returns updated row, or None if not found."""
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow("""
+            UPDATE documents SET section_id = $1::uuid
+            WHERE id = $2::uuid
+            RETURNING id::text, title
+        """, section_id, document_id)
+    return dict(row) if row else None
 
 
 async def delete_document(pool: asyncpg.Pool, document_id: str) -> bool:

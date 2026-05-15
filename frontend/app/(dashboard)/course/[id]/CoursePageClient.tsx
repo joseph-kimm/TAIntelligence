@@ -45,7 +45,6 @@ export default function CoursePageClient({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<Summary[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -444,19 +443,17 @@ export default function CoursePageClient({
               onEditMessage={handleEditMessage}
             />
           )}
-          {activeTab === "summarize" && (
+          <div style={activeTab !== "summarize" ? { display: "none" } : { display: "contents" }}>
             <SummarizeTab
               courseId={course.id}
               selectedDocIds={selectedDocIds}
               summaries={summaries}
               documents={sections.flatMap((s): Document[] => s.documents)}
-              isGenerating={isGenerating}
-              onGeneratingChange={setIsGenerating}
               onSummaryCreated={handleSummaryCreated}
               onSummaryUpdated={handleSummaryUpdated}
               onSummaryDeleted={handleSummaryDeleted}
             />
-          )}
+          </div>
           {activeTab === "test" && (
             <TestTab config={{ mcq: 10, shortAnswer: 5, longAnswer: 2 }} />
           )}

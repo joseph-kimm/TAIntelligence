@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000'
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import {
   ScrollText,
   Sparkles,
@@ -19,6 +24,7 @@ import NewSummaryPanel from "./NewSummaryPanel";
 import { DEFAULT_OPTIONS } from "./SummaryOptionsPanel";
 import type {
   Document,
+  EditType,
   Summary,
   SummaryOptions,
   SummaryVersion,
@@ -30,8 +36,6 @@ interface SummarizeTabProps {
   selectedDocIds: Set<string>;
   summaries: Summary[];
   documents: Document[];
-  isGenerating: boolean;
-  onGeneratingChange: (v: boolean) => void;
   onSummaryCreated: (summary: Summary) => void;
   onSummaryUpdated: (summary: Summary) => void;
   onSummaryDeleted: (summaryId: string) => void;
@@ -42,8 +46,6 @@ export default function SummarizeTab({
   selectedDocIds,
   summaries,
   documents,
-  isGenerating,
-  onGeneratingChange,
   onSummaryCreated,
   onSummaryUpdated,
   onSummaryDeleted,
@@ -52,13 +54,16 @@ export default function SummarizeTab({
   const [activeSummary, setActiveSummary] = useState<Summary | null>(null);
   const [newSummaryMode, setNewSummaryMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progressMessage, setProgressMessage] = useState<string | null>(null);
   const [refineInput, setRefineInput] = useState("");
   const [refining, setRefining] = useState(false);
   const [refineOpen, setRefineOpen] = useState(false);
+  const [editType, setEditType] = useState<Exclude<EditType, "initial">>("structure");
   const [options, setOptions] = useState<SummaryOptions>(DEFAULT_OPTIONS);
   const [versions, setVersions] = useState<SummaryVersion[]>([]);
   const [viewingVersionId, setViewingVersionId] = useState<string | null>(null);
   const [viewingContent, setViewingContent] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [loadingVersion, setLoadingVersion] = useState(false);
   const navigatedAwayRef = useRef(false);
 
@@ -91,10 +96,11 @@ export default function SummarizeTab({
   async function handleSummarize() {
     if (selectedDocIds.size === 0 || isGenerating) return;
     navigatedAwayRef.current = false;
-    onGeneratingChange(true);
+    setIsGenerating(true);
     setError(null);
+    setProgressMessage(null);
     try {
-      const res = await fetch(`/api/courses/${courseId}/summaries`, {
+      const res = await fetch(`${BACKEND_URL}/api/courses/${courseId}/summaries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -110,17 +116,53 @@ export default function SummarizeTab({
           },
         }),
       });
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      const summary = toSummary(await res.json());
-      onSummaryCreated(summary);
-      if (!navigatedAwayRef.current) {
-        setActiveSummary(summary);
-        setNewSummaryMode(false);
+      if (!res.ok || !res.body) throw new Error(`Request failed (${res.status})`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let created: Summary | null = null;
+
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const data = line.slice(6).trim();
+          if (!data) continue;
+          let streamError: Error | null = null;
+          try {
+            const event = JSON.parse(data) as Record<string, unknown>;
+            if (event.type === "progress") {
+              setProgressMessage(event.message as string);
+            } else if (event.type === "done") {
+              created = toSummary(event);
+            } else if (event.type === "error") {
+              streamError = new Error((event.message as string) ?? "Unknown error");
+            }
+          } catch {
+            // skip malformed events
+          }
+          if (streamError) throw streamError;
+          if (created) break outer;
+        }
+      }
+
+      if (created) {
+        onSummaryCreated(created);
+        if (!navigatedAwayRef.current) {
+          setActiveSummary(created);
+          setNewSummaryMode(false);
+        }
       }
     } catch {
       setError("Failed to generate summary. Please try again.");
     } finally {
-      onGeneratingChange(false);
+      setIsGenerating(false);
+      setProgressMessage(null);
     }
   }
 
@@ -140,7 +182,7 @@ export default function SummarizeTab({
       const res = await fetch(`/api/summaries/${activeSummary.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instruction }),
+        body: JSON.stringify({ instruction, edit_type: editType }),
       });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const updated = toSummary(await res.json());
@@ -216,10 +258,9 @@ export default function SummarizeTab({
   const displayContent = viewingContent ?? activeSummary?.content ?? "";
 
   const showNewSummaryForm = newSummaryMode && !isGenerating;
-  const showGeneratingSpinner = newSummaryMode && isGenerating;
-  const showSummaryContent = !newSummaryMode && activeSummary !== null;
-  const showEmptyState =
-    !newSummaryMode && activeSummary === null && !isGenerating;
+  const showGeneratingSpinner = isGenerating && activeSummary === null;
+  const showSummaryContent = !isGenerating && activeSummary !== null && !newSummaryMode;
+  const showEmptyState = !isGenerating && activeSummary === null && !newSummaryMode;
 
   return (
     <div className={styles.container}>
@@ -258,7 +299,7 @@ export default function SummarizeTab({
         <div className={styles.historyList}>
           {isGenerating && (
             <div className={styles.generatingItem}>
-              <Loader2 size={12} className={styles.spinIcon} />
+              <Loader2 size={16} className={styles.spinIcon} />
               <span>Generating…</span>
             </div>
           )}
@@ -276,13 +317,13 @@ export default function SummarizeTab({
               >
                 {refining && activeSummary?.id === item.id ? (
                   <Loader2
-                    size={30}
+                    size={16}
                     className={styles.spinIcon}
                     color="var(--primary)"
                   />
                 ) : (
                   <ScrollText
-                    size={30}
+                    size={16}
                     color={
                       activeSummary?.id === item.id && !newSummaryMode
                         ? "var(--primary)"
@@ -292,11 +333,11 @@ export default function SummarizeTab({
                 )}
                 <div className={styles.historyItemMeta}>
                   <span className={styles.historyItemTitle}>{item.title}</span>
-                  {item.sourceDocumentIds.length > 0 && (
+                  {item.sourceDocumentIds.some((id) => docTitleMap.has(id)) && (
                     <div className={styles.historyItemDocChips}>
-                      {item.sourceDocumentIds.map((id) => (
+                      {item.sourceDocumentIds.filter((id) => docTitleMap.has(id)).map((id) => (
                         <span key={id} className={styles.historyItemDocChip}>
-                          {docTitleMap.get(id) ?? "Document"}
+                          {docTitleMap.get(id)}
                         </span>
                       ))}
                     </div>
@@ -345,7 +386,12 @@ export default function SummarizeTab({
                 <p className={styles.docMeta}>
                   {refining
                     ? "Refining…"
-                    : `${activeSummary.sourceDocumentIds.length} source document${activeSummary.sourceDocumentIds.length !== 1 ? "s" : ""}`}
+                    : (() => {
+                        const count = activeSummary.sourceDocumentIds.filter((id) => docTitleMap.has(id)).length;
+                        return count > 0
+                          ? `${count} source document${count !== 1 ? "s" : ""}`
+                          : "Source documents deleted";
+                      })()}
                 </p>
               </div>
             </div>
@@ -385,13 +431,13 @@ export default function SummarizeTab({
               </select>
             )}
             <div className={styles.sourceChips}>
-              {activeSummary.sourceDocumentIds.map((id) => (
+              {activeSummary.sourceDocumentIds.filter((id) => docTitleMap.has(id)).map((id) => (
                 <span
                   key={id}
                   className={styles.sourceChip}
                   title={docTitleMap.get(id)}
                 >
-                  {docTitleMap.get(id) ?? "Document"}
+                  {docTitleMap.get(id)}
                 </span>
               ))}
             </div>
@@ -410,7 +456,9 @@ export default function SummarizeTab({
                   className={styles.spinIcon}
                   color="var(--primary)"
                 />
-                <p className={styles.loadingText}>Generating summary…</p>
+                <p className={styles.loadingText}>
+                  {progressMessage ?? "Generating summary…"}
+                </p>
               </div>
             )}
 
@@ -429,8 +477,11 @@ export default function SummarizeTab({
               <>
                 <h1 className={styles.docTitle}>{activeSummary.title}</h1>
                 <div className={styles.summaryContent}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {displayContent}
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath, remarkGfm]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {normalizeLatex(displayContent)}
                   </ReactMarkdown>
                 </div>
               </>
@@ -451,10 +502,35 @@ export default function SummarizeTab({
         {/* Floating refine drawer — sits above bottom bar in normal flow */}
         {refineOpen && showSummaryContent && !isViewingOldVersion && (
           <div className={styles.refineDrawer}>
+            <div className={styles.editTypeToggle}>
+              <button
+                className={`${styles.editTypeBtn} ${editType === "structure" ? styles.editTypeBtnActive : ""}`}
+                onClick={() => setEditType("structure")}
+                disabled={refining}
+              >
+                Structure
+              </button>
+              <button
+                className={`${styles.editTypeBtn} ${editType === "content" ? styles.editTypeBtnActive : ""}`}
+                onClick={() => setEditType("content")}
+                disabled={refining}
+              >
+                Content
+              </button>
+            </div>
+            <p className={styles.editTypeHint}>
+              {editType === "structure"
+                ? "Reformat or restyle — no new information added."
+                : "Search and incorporate additional source material."}
+            </p>
             <div className={styles.refineDrawerRow}>
               <textarea
                 className={styles.refineTextarea}
-                placeholder="e.g. make it shorter, focus on key concepts…"
+                placeholder={
+                  editType === "structure"
+                    ? "e.g. convert to bullet points, use a more academic tone…"
+                    : "e.g. add more detail on photosynthesis…"
+                }
                 value={refineInput}
                 onChange={(e) => setRefineInput(e.target.value)}
                 onKeyDown={handleRefineKey}
@@ -518,6 +594,12 @@ export default function SummarizeTab({
   );
 }
 
+function normalizeLatex(content: string): string {
+  return content
+    .replace(/\\\[/g, "$$").replace(/\\\]/g, "$$")
+    .replace(/\\\(/g, "$").replace(/\\\)/g, "$");
+}
+
 function toSummary(raw: Record<string, unknown>): Summary {
   return {
     id: raw.id as string,
@@ -536,6 +618,7 @@ function toSummaryVersion(raw: unknown): SummaryVersion {
     id: r.id as string,
     summaryId: r.summary_id as string,
     versionNumber: r.version_number as number,
+    editType: (r.edit_type as EditType) ?? "initial",
     createdAt: r.created_at as string,
   };
 }

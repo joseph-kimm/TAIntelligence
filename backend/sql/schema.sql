@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS documents (
     source_type  TEXT        NOT NULL DEFAULT 'file',
     source_ref   TEXT,
     token_count  INTEGER,
+    full_text    TEXT,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -50,3 +51,5 @@ CREATE INDEX IF NOT EXISTS documents_section_id_idx ON documents(section_id);
 -- ALTER TABLE documents ADD COLUMN IF NOT EXISTS source_type TEXT NOT NULL DEFAULT 'file';
 -- ALTER TABLE documents ADD COLUMN IF NOT EXISTS source_ref TEXT;
 -- ALTER TABLE documents ADD COLUMN IF NOT EXISTS token_count INTEGER;
+-- ALTER TABLE documents ADD COLUMN IF NOT EXISTS full_text TEXT;
+

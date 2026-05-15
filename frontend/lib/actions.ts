@@ -51,6 +51,14 @@ export async function renameDocument(id: string, title: string): Promise<void> {
   })
 }
 
+export async function moveDocument(id: string, sectionId: string): Promise<void> {
+  await apiFetch<void>(`/api/documents/${id}/move`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ section_id: sectionId }),
+  })
+}
+
 export async function deleteDocument(id: string): Promise<void> {
   await apiFetch<void>(`/api/documents/${id}`, { method: 'DELETE' })
 }

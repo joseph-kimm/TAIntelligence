@@ -6,7 +6,7 @@ import styles from './SummaryOptionsPanel.module.css'
 import type { SummaryOptions, SummaryStyle, SummaryTone, FocusEmphasis, DetailLevel, AudienceLevel } from '@/types'
 
 const DETAIL_STOPS = ['Default', 'TL;DR', 'Quick Read', 'Balanced', 'In-Depth', 'Exhaustive']
-const AUDIENCE_STOPS = ['Default', 'ELI5', 'High School', 'College']
+const AUDIENCE_STOPS = ['Default', 'ELI5', 'High School', 'College', 'Professional']
 
 const STYLE_OPTIONS: { value: SummaryStyle; label: string }[] = [
   { value: 'bullet_points', label: 'Bullet Points' },
@@ -118,7 +118,7 @@ export default function SummaryOptionsPanel({ options, onChange }: Props) {
             </div>
             <input
               type="range"
-              min={0} max={3} step={1}
+              min={0} max={4} step={1}
               value={options.audience}
               onChange={e => set({ audience: Number(e.target.value) as AudienceLevel })}
               className={styles.slider}

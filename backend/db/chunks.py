@@ -62,6 +62,25 @@ async def search_chunks_by_embedding(
     return [dict(row) for row in rows]
 
 
+async def get_parent_chunks_by_child_ids(
+    pool: asyncpg.Pool,
+    child_chunk_ids: list[str],
+) -> list[dict]:
+    """Return parent chunk texts for the given child chunk IDs."""
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT pc.id::text, pc.text, pc.chunk_index, cc.document_id::text
+            FROM child_chunks cc
+            JOIN parent_chunks pc ON pc.id = cc.parent_chunk_id
+            WHERE cc.id = ANY($1::uuid[])
+            ORDER BY cc.document_id, pc.chunk_index
+            """,
+            child_chunk_ids,
+        )
+    return [dict(row) for row in rows]
+
+
 async def bulk_insert_parent_child_chunks(
     pool: asyncpg.Pool,
     document_id: str,

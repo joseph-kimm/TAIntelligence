@@ -12,7 +12,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from pypdf import PdfReader
 from core.config import settings
 from db.chunks import bulk_insert_parent_child_chunks
-from db.documents import mark_document_ingestion_failed, update_document_token_count
+from db.documents import mark_document_ingestion_failed, update_document_after_ingestion
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +37,27 @@ def extract_text(file_bytes: bytes, mime_type: str) -> str:
         text = file_bytes.decode("utf-8", errors="replace")
     return text.replace("\x00", "")
 
-def chunk_text(text: str):
-    """Split text into 350-token windows with 60-token overlap."""
-    splitter = SentenceSplitter(chunk_size=350, chunk_overlap=60)
-    return splitter.get_nodes_from_documents([LlamaDocument(text=text)])
+def build_chunks(text: str) -> tuple[list[str], list[str], list[int]]:
+    """Build non-overlapping parent chunks and overlapping child chunks.
+
+    Parents are 1400-token non-overlapping windows split from the original text.
+    Children are 350-token/60-overlap sub-chunks scoped within each parent.
+    Returns (parent_texts, child_texts, child_parent_indices).
+    """
+    parent_splitter = SentenceSplitter(chunk_size=1400, chunk_overlap=0)
+    child_splitter = SentenceSplitter(chunk_size=350, chunk_overlap=60)
+
+    parent_nodes = parent_splitter.get_nodes_from_documents([LlamaDocument(text=text)])
+    parent_texts = [n.get_content() for n in parent_nodes]
+
+    child_texts: list[str] = []
+    child_parent_indices: list[int] = []
+    for i, parent_text in enumerate(parent_texts):
+        children = child_splitter.get_nodes_from_documents([LlamaDocument(text=parent_text)])
+        child_texts.extend(n.get_content() for n in children)
+        child_parent_indices.extend([i] * len(children))
+
+    return parent_texts, child_texts, child_parent_indices
 
 
 def embed_chunks(embed_model: HuggingFaceEmbedding, texts: list[str]) -> list[list[float]]:
@@ -78,25 +95,20 @@ async def ingest_document(
         logger.info("[%s] Extracted text in %.1fs — %d chars, ~%d words, %d tokens", label, time.perf_counter() - t_extract, char_count, word_count, token_count)
 
         t_chunk = time.perf_counter()
-        nodes = await asyncio.to_thread(chunk_text, text)
-        if not nodes:
+        parent_texts, child_texts, child_parent_indices = await asyncio.to_thread(build_chunks, text)
+        if not child_texts:
             logger.warning("[%s] No chunks produced — skipping", label)
             return
 
-        chunk_sizes = [len(n.get_content().split()) for n in nodes]
+        child_sizes = [len(t.split()) for t in child_texts]
         logger.info(
-            "[%s] Chunked in %.1fs — %d pieces, min=%d words, avg=%d words, max=%d words",
-            label, time.perf_counter() - t_chunk, len(nodes), min(chunk_sizes), sum(chunk_sizes) // len(chunk_sizes), max(chunk_sizes),
+            "[%s] Chunked in %.1fs — %d parents, %d children, min=%d words, avg=%d words, max=%d words",
+            label, time.perf_counter() - t_chunk, len(parent_texts), len(child_texts),
+            min(child_sizes), sum(child_sizes) // len(child_sizes), max(child_sizes),
         )
-
-        child_texts = [node.get_content() for node in nodes]
 
         enc = tiktoken.get_encoding("cl100k_base")
         child_token_counts = [len(enc.encode(t)) for t in child_texts]
-
-        groups = [child_texts[i:i + 4] for i in range(0, len(child_texts), 4)]
-        parent_texts = ["\n\n".join(group) for group in groups]
-        child_parent_indices = [i // 4 for i in range(len(child_texts))]
 
         logger.info("[%s] Embedding %d child chunks (%d parents)…", label, len(child_texts), len(parent_texts))
         t_embed = time.perf_counter()
@@ -109,7 +121,7 @@ async def ingest_document(
         )
         logger.info("[%s] DB write done in %.1fs — %d child chunks, %d parents stored", label, time.perf_counter() - t_db, count, len(parent_texts))
 
-        await update_document_token_count(pool, document_id, token_count)
+        await update_document_after_ingestion(pool, document_id, token_count, text)
 
         logger.info("[%s] Ingestion complete in %.1fs total", label, time.perf_counter() - t_start)
 

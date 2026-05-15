@@ -16,3 +16,9 @@ INSERT INTO summary_versions (summary_id, version_number, content, created_at)
 SELECT id, 1, content, created_at FROM summaries;
 
 ALTER TABLE summaries DROP COLUMN content;
+
+-- ─── summary_versions migration (run once after initial schema is applied) ────
+-- ALTER TABLE summary_versions
+--   ADD COLUMN IF NOT EXISTS edit_type TEXT NOT NULL DEFAULT 'initial'
+--     CHECK (edit_type IN ('initial', 'structure', 'content')),
+--   ADD COLUMN IF NOT EXISTS source_chunk_ids UUID[] NOT NULL DEFAULT '{}';

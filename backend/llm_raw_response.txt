@@ -93,3 +93,22 @@ Tool calling with large language models (LLMs) can be done in several ways, most
 5. **Prompt engineering for tool selection** – By phrasing the user request so that it explicitly mentions the desired functionality (e.g., “convert spoken audio to text using Torch Hub”), the model can select the correct library and construct a valid API call, as demonstrated by the Gorilla model’s ability to generate accurate calls where other models hallucinate <<chunk_4>>.
 
 In practice, you would (a) expose the needed APIs to the LLM (either via a plug‑in framework or a custom retrieval system), (b) provide the model with up‑to‑date documentation, and (c) fine‑tune or prompt‑engineer the model to generate the correct call syntax and populate all required parameters.  This combination lets the LLM act as a natural‑language interface to a wide range of computational tools.
+
+--- response ---
+
+For a univariate random variable the Gaussian (normal) density is  
+
+\[
+p(x \mid \mu,\sigma^{2})=\frac{1}{\sqrt{2\pi\sigma^{2}}}\,
+\exp\!\left[-\frac{(x-\mu)^{2}}{2\sigma^{2}}\right].
+\]  
+
+For a multivariate random variable \(\mathbf{x}\in\mathbb{R}^{D}\) with mean vector \(\boldsymbol{\mu}\) and covariance matrix \(\Sigma\), the density is  
+
+\[
+p(\mathbf{x}\mid\boldsymbol{\mu},\Sigma)=
+(2\pi)^{-D/2}\,|\Sigma|^{-1/2}\,
+\exp\!\left[-\frac12(\mathbf{x}-\boldsymbol{\mu})^{\top}\Sigma^{-1}(\mathbf{x}-\boldsymbol{\mu})\right].
+\]  
+
+<<chunk_1,chunk_10>>
