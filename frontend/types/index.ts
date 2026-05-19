@@ -65,6 +65,47 @@ export interface SummaryVersionDetail extends SummaryVersion {
 
 export type CourseTab = 'chat' | 'summarize' | 'test'
 
+export type TestPurpose = 'quick_review' | 'exam_prep' | 'deep_application'
+
+export interface Test {
+  id: string
+  courseId: string
+  title: string
+  sourceDocumentIds: string[]
+  mcqCount: number
+  frqCount: number
+  purpose: TestPurpose
+  createdAt: string
+  questions?: Question[]
+}
+
+export interface McqOption {
+  id: string
+  questionId: string
+  position: number
+  content: string
+  isCorrect: boolean
+  explanation: string | null
+}
+
+export interface FrqAnswer {
+  id: string
+  questionId: string
+  idealAnswer: string | null
+  rubric: Array<{ criterion: string; points: number }>
+}
+
+export interface Question {
+  id: string
+  testId: string
+  position: number
+  questionType: 'mcq' | 'frq'
+  content: string
+  learningObjective: string | null
+  options?: McqOption[]
+  answer?: FrqAnswer
+}
+
 export type DetailLevel = 0 | 1 | 2 | 3 | 4 | 5
 export type AudienceLevel = 0 | 1 | 2 | 3 | 4
 export type SummaryStyle = 'bullet_points' | 'paragraph' | 'table' | 'structured' | 'qa'

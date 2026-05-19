@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from core.config import settings
 from core.db import close_pool, create_pool
-from routers import chat, courses, documents, sections, summaries
+from routers import chat, courses, documents, sections, summaries, tests
 from services.ingestion import create_embed_model
 
 
@@ -61,6 +61,7 @@ app.include_router(sections.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
 app.include_router(summaries.router, prefix="/api")
+app.include_router(tests.router, prefix="/api")
 
 
 @app.get("/health")

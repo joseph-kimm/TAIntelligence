@@ -20,6 +20,8 @@ import type {
   Message,
   Section,
   Summary,
+  Test,
+  TestPurpose,
 } from "@/types";
 
 interface CoursePageClientProps {
@@ -45,6 +47,7 @@ export default function CoursePageClient({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<Summary[]>([]);
+  const [tests, setTests] = useState<Test[]>([]);
 
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -133,6 +136,26 @@ export default function CoursePageClient({
             currentVersionNumber: (s.current_version_number as number) ?? 1,
             sourceDocumentIds: (s.source_document_ids as string[]) ?? [],
             createdAt: s.created_at as string,
+          })),
+        ),
+      )
+      .catch(() => {});
+  }, [course.id]);
+
+  useEffect(() => {
+    fetch(`/api/courses/${course.id}/tests`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: Array<Record<string, unknown>>) =>
+        setTests(
+          data.map((t) => ({
+            id: t.id as string,
+            courseId: t.course_id as string,
+            title: t.title as string,
+            sourceDocumentIds: (t.source_document_ids as string[]) ?? [],
+            mcqCount: t.mcq_count as number,
+            frqCount: t.frq_count as number,
+            purpose: t.purpose as TestPurpose,
+            createdAt: t.created_at as string,
           })),
         ),
       )
@@ -454,9 +477,17 @@ export default function CoursePageClient({
               onSummaryDeleted={handleSummaryDeleted}
             />
           </div>
-          {activeTab === "test" && (
-            <TestTab config={{ mcq: 10, shortAnswer: 5, longAnswer: 2 }} />
-          )}
+          <div style={activeTab !== "test" ? { display: "none" } : { display: "contents" }}>
+            <TestTab
+              courseId={course.id}
+              courseTitle={course.title}
+              selectedDocIds={selectedDocIds}
+              sections={sections}
+              tests={tests}
+              onTestCreated={(test) => setTests((prev) => [test, ...prev])}
+              onTestDeleted={(testId) => setTests((prev) => prev.filter((t) => t.id !== testId))}
+            />
+          </div>
         </main>
       </div>
 

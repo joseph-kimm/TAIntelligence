@@ -1,7 +1,6 @@
 import asyncio
 import json
 import logging
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
@@ -96,11 +95,6 @@ def _make_stream(
             logger.exception("Unexpected error during LLM collect")
             yield f"data: {json.dumps({'type': 'error', 'message': 'An unexpected error occurred. Please try again.'})}\n\n"
             return
-
-        _RAW_RESPONSE_PATH = Path(__file__).parent.parent / "llm_raw_response.txt"
-        with _RAW_RESPONSE_PATH.open("a") as f:
-            f.write("\n\n--- response ---\n\n")
-            f.write(raw)
 
         parsed = parse_and_validate(raw, chunks)
 
