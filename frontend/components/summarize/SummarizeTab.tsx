@@ -66,11 +66,19 @@ export default function SummarizeTab({
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingVersion, setLoadingVersion] = useState(false);
   const navigatedAwayRef = useRef(false);
+  const initializedRef = useRef(false);
 
   const docTitleMap = useMemo(
     () => new Map(documents.map((d) => [d.id, d.title])),
     [documents],
   );
+
+  useEffect(() => {
+    if (!initializedRef.current && summaries.length > 0) {
+      initializedRef.current = true;
+      setActiveSummary(summaries[0]);
+    }
+  }, [summaries]);
 
   useEffect(() => {
     setVersions([]);
@@ -83,7 +91,7 @@ export default function SummarizeTab({
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data: unknown[]) => setVersions(data.map(toSummaryVersion)))
       .catch(() => {});
-  }, [activeSummary?.id]);
+  }, [activeSummary]);
 
   function handleHistoryItemClick(item: Summary) {
     if (isGenerating) navigatedAwayRef.current = true;
@@ -259,7 +267,7 @@ export default function SummarizeTab({
 
   const showNewSummaryForm = newSummaryMode && !isGenerating;
   const showGeneratingSpinner = isGenerating && activeSummary === null;
-  const showSummaryContent = !isGenerating && activeSummary !== null && !newSummaryMode;
+  const showSummaryContent = activeSummary !== null && !newSummaryMode;
   const showEmptyState = !isGenerating && activeSummary === null && !newSummaryMode;
 
   return (
@@ -289,6 +297,7 @@ export default function SummarizeTab({
           className={`${styles.newSummaryBtn} ${newSummaryMode ? styles.newSummaryBtnActive : ""}`}
           onClick={() => {
             setNewSummaryMode(true);
+            setActiveSummary(null);
             setHistoryVisible(false);
           }}
         >

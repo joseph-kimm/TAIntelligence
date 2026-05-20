@@ -94,8 +94,10 @@ def _parse_json_response(raw: str) -> dict:
     fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
     if fenced:
         text = fenced.group(1)
+    # Remove backslashes not forming valid JSON escape sequences (e.g. \- from markdown)
+    text = re.sub(r'\\(?!["\\/bfnrtu])', '', text)
     try:
-        parsed = json.loads(text)
+        parsed = json.loads(text, strict=False)
         return {"title": str(parsed["title"]), "content": str(parsed["content"])}
     except (json.JSONDecodeError, KeyError):
         logger.warning("Failed to parse summary JSON, using raw response as content")

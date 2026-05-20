@@ -30,3 +30,15 @@ class GenerateTestIn(BaseModel):
         if not v.strip():
             raise ValueError("title must not be empty")
         return v.strip()
+
+
+class RawAnswerIn(BaseModel):
+    question_id: str
+    selected_option_id: str | None = None
+    response_text: str | None = None
+
+
+class SubmitAttemptIn(BaseModel):
+    answers: list[RawAnswerIn] = []
+    question_order: list[str] = []
+    option_orders: dict[str, list[str]] = {}

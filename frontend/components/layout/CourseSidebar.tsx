@@ -35,14 +35,14 @@ export default function CourseSidebar({
     [sections]
   )
   const selected = selectedDocIds
-  const setSelected = onSelectionChange
 
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
 
   function toggleCollapse(sectionId: string) {
     setCollapsedSections((prev) => {
       const next = new Set(prev)
-      next.has(sectionId) ? next.delete(sectionId) : next.add(sectionId)
+      if (next.has(sectionId)) next.delete(sectionId)
+      else next.add(sectionId)
       return next
     })
   }
@@ -84,7 +84,8 @@ export default function CourseSidebar({
 
   function toggleDocument(id: string) {
     const next = new Set(selected)
-    next.has(id) ? next.delete(id) : next.add(id)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
     onSelectionChange(next)
   }
 
@@ -92,7 +93,8 @@ export default function CourseSidebar({
     const ids = section.documents.filter((d) => d.ingestionStatus === 'complete').map((d) => d.id)
     const allChecked = ids.every((id) => selected.has(id))
     const next = new Set(selected)
-    allChecked ? ids.forEach((id) => next.delete(id)) : ids.forEach((id) => next.add(id))
+    if (allChecked) ids.forEach((id) => next.delete(id))
+    else ids.forEach((id) => next.add(id))
     onSelectionChange(next)
   }
 

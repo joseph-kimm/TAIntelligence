@@ -67,22 +67,28 @@ export type CourseTab = 'chat' | 'summarize' | 'test'
 
 export type TestPurpose = 'quick_review' | 'exam_prep' | 'deep_application'
 
+export interface QuestionSet {
+  id: string
+  testId: string
+  setNumber: number
+  mcqCount: number
+  frqCount: number
+  createdAt: string
+}
+
 export interface Test {
   id: string
   courseId: string
   title: string
   sourceDocumentIds: string[]
-  mcqCount: number
-  frqCount: number
   purpose: TestPurpose
   createdAt: string
-  questions?: Question[]
+  questionSets: QuestionSet[]
 }
 
 export interface McqOption {
   id: string
   questionId: string
-  position: number
   content: string
   isCorrect: boolean
   explanation: string | null
@@ -97,13 +103,37 @@ export interface FrqAnswer {
 
 export interface Question {
   id: string
-  testId: string
-  position: number
+  questionSetId: string
   questionType: 'mcq' | 'frq'
   content: string
   learningObjective: string | null
   options?: McqOption[]
   answer?: FrqAnswer
+}
+
+export interface TestAttempt {
+  id: string
+  questionSetId: string
+  score: number | null
+  maxScore: number | null
+  submittedAt: string | null
+  createdAt: string
+}
+
+export interface UserAnswer {
+  id: string
+  attemptId: string
+  questionId: string
+  selectedOptionId: string | null
+  responseText: string | null
+  score: number | null
+  feedbackText: string | null
+}
+
+export interface TestAttemptDetail extends TestAttempt {
+  answers: UserAnswer[]
+  questionOrder: string[]
+  optionOrders: Record<string, string[]>
 }
 
 export type DetailLevel = 0 | 1 | 2 | 3 | 4 | 5

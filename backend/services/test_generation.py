@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 
 from db.chunks import get_parent_chunks_by_child_ids, search_chunks_by_embedding
 from db.documents import get_full_texts_for_documents, get_parent_chunks_for_documents, get_total_token_count
-from db.tests import get_test_with_questions, save_questions
+from db.tests import get_question_set_with_questions, save_questions, update_test_objectives
 from services.llm import collect_llm_response
 
 logger = logging.getLogger(__name__)
@@ -79,6 +79,7 @@ async def _select_objectives(
     mcq_count: int,
     frq_count: int,
     purpose: str,
+    already_tested: list[str],
     openrouter_key: str,
     model: str,
 ) -> dict[str, list[str]]:
@@ -91,13 +92,22 @@ async def _select_objectives(
         f"{purpose_desc}"
     )
     objectives_text = "\n".join(f"- {o}" for o in all_objectives)
+    already_tested_clause = ""
+    if already_tested:
+        already_tested_text = "\n".join(f"- {o}" for o in already_tested)
+        already_tested_clause = (
+            "\nThe following objectives have already been tested in previous question sets — "
+            "avoid selecting them or any semantically similar objectives:\n"
+            f"{already_tested_text}\n"
+        )
     user = (
         f"From the following learning objectives, select exactly {mcq_count} best suited for "
         f"multiple-choice questions (MCQ) and exactly {frq_count} best suited for "
         f"free-response questions (FRQ).\n\n"
         "MCQ: prefer objectives testing recall, recognition, or straightforward application.\n"
         "FRQ: prefer objectives requiring explanation, analysis, comparison, or synthesis.\n\n"
-        "Prioritize coverage and diversity — avoid selecting near-duplicate objectives.\n\n"
+        "Prioritize coverage and diversity — avoid selecting near-duplicate objectives.\n"
+        f"{already_tested_clause}"
         f"If fewer than {total} objectives are available, select as many as possible.\n\n"
         "Return ONLY JSON in this exact format:\n"
         '{"mcq": ["objective 1", ...], "frq": ["objective 1", ...]}\n\n'
@@ -214,7 +224,7 @@ async def _generate_frq(
         "Generate one free-response question for the above objective using the course material below.\n\n"
         "Requirements:\n"
         "- A clear, open-ended question\n"
-        "- An ideal answer (2–4 sentences)\n"
+        "- An ideal answer\n"
         "- A rubric with 2–4 criteria, each with a point value (integer > 0)\n\n"
         "Return ONLY valid JSON in this exact format:\n"
         "{\n"
@@ -282,66 +292,74 @@ async def _generate_question_with_retry(
 
 async def run_test_generation(
     pool,
+    question_set_id: str,
     test_id: str,
     course_id: str,
     document_ids: list[str],
     mcq_count: int,
     frq_count: int,
     purpose: str,
+    all_objectives: list[str] | None,
+    already_tested: list[str],
     openrouter_key: str,
     model: str,
     context_limit: int,
     embed_model,
     on_progress: Callable[[dict], Awaitable[None]] | None = None,
 ) -> dict:
-    """Orchestrate test generation. Returns the full test dict with questions."""
+    """Orchestrate test generation. Returns the question set dict with questions."""
 
     async def _progress(event: dict) -> None:
         if on_progress:
             await on_progress(event)
 
-    await _progress({"stage": "analyzing", "message": "Analyzing documents…"})
+    # ── Phase 1: Extract objectives (only on first generation) ───────────────
+    if all_objectives is None:
+        await _progress({"stage": "analyzing", "message": "Analyzing documents…"})
 
-    total_tokens = await get_total_token_count(pool, document_ids)
-    threshold = context_limit * 0.6
-    logger.info(
-        "Test generation: %d docs, %d total tokens, threshold=%d",
-        len(document_ids), total_tokens, threshold,
-    )
+        total_tokens = await get_total_token_count(pool, document_ids)
+        threshold = context_limit * 0.6
+        logger.info(
+            "Test generation: %d docs, %d total tokens, threshold=%d",
+            len(document_ids), total_tokens, threshold,
+        )
 
-    # ── Phase 1: Extract objectives ──────────────────────────────────────────
-    if total_tokens < threshold:
-        docs = await get_full_texts_for_documents(pool, document_ids)
-        combined_text = "\n\n---\n\n".join(d["full_text"] for d in docs if d.get("full_text"))
-        await _progress({"stage": "extracting_objectives", "message": "Extracting learning objectives…"})
-        all_objectives = await _extract_objectives_batch(combined_text, purpose, openrouter_key, model)
+        if total_tokens < threshold:
+            docs = await get_full_texts_for_documents(pool, document_ids)
+            combined_text = "\n\n---\n\n".join(d["full_text"] for d in docs if d.get("full_text"))
+            await _progress({"stage": "extracting_objectives", "message": "Extracting learning objectives…"})
+            all_objectives = await _extract_objectives_batch(combined_text, purpose, openrouter_key, model)
+        else:
+            parent_chunks = await get_parent_chunks_for_documents(pool, document_ids)
+            texts = [chunk["text"] for chunk in parent_chunks]
+            batches = [texts[i:i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
+            n = len(batches)
+            await _progress({
+                "stage": "extracting_objectives",
+                "message": f"Extracting objectives from {n} batch{'es' if n != 1 else ''} in parallel…",
+            })
+            batch_results: list[list[str]] = list(await asyncio.gather(*[
+                _extract_objectives_batch("\n\n---\n\n".join(batch), purpose, openrouter_key, model)
+                for batch in batches
+            ]))
+            all_objectives = [obj for batch in batch_results for obj in batch]
+
+        logger.info("Extracted %d raw objectives", len(all_objectives))
+        await update_test_objectives(pool, test_id, all_objectives)
     else:
-        parent_chunks = await get_parent_chunks_for_documents(pool, document_ids)
-        texts = [chunk["text"] for chunk in parent_chunks]
-        batches = [texts[i:i + BATCH_SIZE] for i in range(0, len(texts), BATCH_SIZE)]
-        n = len(batches)
-        await _progress({
-            "stage": "extracting_objectives",
-            "message": f"Extracting objectives from {n} batch{'es' if n != 1 else ''} in parallel…",
-        })
-        batch_results: list[list[str]] = list(await asyncio.gather(*[
-            _extract_objectives_batch("\n\n---\n\n".join(batch), purpose, openrouter_key, model)
-            for batch in batches
-        ]))
-        all_objectives = [obj for batch in batch_results for obj in batch]
+        logger.info("Reusing %d stored objectives for test %s", len(all_objectives), test_id)
 
-    logger.info("Extracted %d raw objectives", len(all_objectives))
     await _progress({
         "stage": "objectives_extracted",
-        "message": f"Extracted {len(all_objectives)} objectives. Selecting the most relevant objectives…",
+        "message": f"Using {len(all_objectives)} objectives. Selecting the most relevant…",
     })
 
     # ── Phase 2: Select objectives ───────────────────────────────────────────
     if not all_objectives:
-        logger.warning("No objectives extracted — saving test with 0 questions")
-        return await get_test_with_questions(pool, test_id)
+        logger.warning("No objectives available — saving question set with 0 questions")
+        return await get_question_set_with_questions(pool, question_set_id)
 
-    selected = await _select_objectives(all_objectives, mcq_count, frq_count, purpose, openrouter_key, model)
+    selected = await _select_objectives(all_objectives, mcq_count, frq_count, purpose, already_tested, openrouter_key, model)
     mcq_objectives = selected["mcq"]
     frq_objectives = selected["frq"]
     total_questions = len(mcq_objectives) + len(frq_objectives)
@@ -419,11 +437,11 @@ async def run_test_generation(
             frq_pos_cursor += 1
 
     logger.info(
-        "Saving %d questions (%d MCQ, %d FRQ) for test %s",
+        "Saving %d questions (%d MCQ, %d FRQ) for question_set %s",
         len(questions_to_save),
         mcq_pos_cursor,
         frq_pos_cursor - frq_offset,
-        test_id,
+        question_set_id,
     )
-    await save_questions(pool, test_id, questions_to_save)
-    return await get_test_with_questions(pool, test_id)
+    await save_questions(pool, question_set_id, questions_to_save)
+    return await get_question_set_with_questions(pool, question_set_id)

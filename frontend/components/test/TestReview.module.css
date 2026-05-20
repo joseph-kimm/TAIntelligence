@@ -1,0 +1,270 @@
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Score banner */
+
+.scoreBanner {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 20%, transparent);
+  border-radius: 1rem;
+}
+
+.scoreMain {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--on-surface);
+}
+
+.scorePct {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* Question list */
+
+.questionList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.questionCard {
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 30%, transparent);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: var(--surface-container-lowest);
+}
+
+.questionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.questionNumber {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+}
+
+.badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.mcqBadge {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+}
+
+.frqBadge {
+  background: color-mix(in srgb, var(--secondary, var(--primary)) 10%, transparent);
+  color: var(--secondary, var(--primary));
+}
+
+.qScore {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+}
+
+.questionContent {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--on-surface);
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* MCQ review */
+
+.mcqReview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.chosenOption {
+  border-radius: 0.625rem;
+  border: 1.5px solid transparent;
+  padding: 0.625rem 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.chosenCorrect {
+  background: color-mix(in srgb, #22c55e 8%, transparent);
+  border-color: color-mix(in srgb, #22c55e 30%, transparent);
+}
+
+.chosenWrong {
+  background: color-mix(in srgb, #ef4444 8%, transparent);
+  border-color: color-mix(in srgb, #ef4444 25%, transparent);
+}
+
+.chosenRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.iconCorrect { color: #22c55e; flex-shrink: 0; }
+.iconWrong { color: #ef4444; flex-shrink: 0; }
+
+.chosenLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  flex-shrink: 0;
+}
+
+.chosenContent {
+  font-size: 0.8125rem;
+  color: var(--on-surface);
+  line-height: 1.4;
+}
+
+.chosenExplanation {
+  font-size: 0.7rem;
+  color: var(--on-surface-variant);
+  line-height: 1.4;
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.unanswered {
+  font-size: 0.8rem;
+  color: var(--on-surface-variant);
+  font-style: italic;
+  margin: 0;
+}
+
+/* FRQ review */
+
+.frqReview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.frqSectionLabel {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--on-surface-variant);
+  margin: 0.375rem 0 0;
+}
+
+.frqSectionLabel:first-child { margin-top: 0; }
+
+.frqResponse {
+  font-size: 0.8125rem;
+  color: var(--on-surface);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.frqFeedback {
+  font-size: 0.8rem;
+  color: var(--on-surface-variant);
+  line-height: 1.5;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface-container-low);
+  border-radius: 0.5rem;
+  border-left: 2px solid var(--primary);
+}
+
+.idealToggle {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary);
+  background: none;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  margin-top: 0.25rem;
+  width: fit-content;
+}
+
+.idealToggle:hover { text-decoration: underline; }
+
+.idealAnswer {
+  font-size: 0.8125rem;
+  color: var(--on-surface);
+  line-height: 1.6;
+  margin: 0;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
+  border-radius: 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+/* Actions */
+
+.reviewActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+.retakeBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  border: 1.5px solid color-mix(in srgb, var(--outline-variant) 50%, transparent);
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--on-surface);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.retakeBtn:hover {
+  background: var(--surface-container-low);
+  border-color: var(--outline-variant);
+}
+
+.regenBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.regenBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}

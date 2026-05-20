@@ -91,7 +91,10 @@ async def create_course_summary(course_id: str, body: SummarizeIn, request: Requ
                     payload = json_lib.dumps({"type": "error", "message": data})
                 yield f"data: {payload}\n\n"
         finally:
-            await task
+            try:
+                await asyncio.shield(task)
+            except asyncio.CancelledError:
+                pass  # task continues as a background task if client disconnected
 
     return StreamingResponse(
         event_stream(),

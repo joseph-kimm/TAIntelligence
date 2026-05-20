@@ -1,0 +1,180 @@
+.taker {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.questionList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.questionCard {
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 30%, transparent);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  background: var(--surface-container-lowest);
+}
+
+.questionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.questionNumber {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+}
+
+.badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+}
+
+.mcqBadge {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+  color: var(--primary);
+}
+
+.frqBadge {
+  background: color-mix(in srgb, var(--secondary, var(--primary)) 10%, transparent);
+  color: var(--secondary, var(--primary));
+}
+
+.questionContent {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--on-surface);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: 0.625rem;
+  border: 1.5px solid color-mix(in srgb, var(--outline-variant) 40%, transparent);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  width: 100%;
+}
+
+.option:hover:not(:disabled) {
+  background: var(--surface-container-low);
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.option:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.optionSelected {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+  border-color: var(--primary);
+}
+
+.optionSelected:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.optionLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  flex-shrink: 0;
+  min-width: 1rem;
+  padding-top: 0.1rem;
+}
+
+.optionContent {
+  font-size: 0.8125rem;
+  color: var(--on-surface);
+  line-height: 1.4;
+}
+
+.frqTextarea {
+  width: 100%;
+  border: 1.5px solid color-mix(in srgb, var(--outline-variant) 40%, transparent);
+  border-radius: 0.625rem;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-family: inherit;
+  color: var(--on-surface);
+  background: var(--surface-container-low);
+  resize: vertical;
+  min-height: 7rem;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.frqTextarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.frqTextarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.submitRow {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+.submitBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 9999px;
+  font-weight: 700;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.submitBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinIcon {
+  animation: spin 1s linear infinite;
+}

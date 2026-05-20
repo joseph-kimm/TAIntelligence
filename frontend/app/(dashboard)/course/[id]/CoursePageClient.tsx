@@ -17,7 +17,7 @@ import type {
   Course,
   CourseTab,
   Document,
-  Message,
+  QuestionSet,
   Section,
   Summary,
   Test,
@@ -50,7 +50,6 @@ export default function CoursePageClient({
   const [tests, setTests] = useState<Test[]>([]);
 
   useLayoutEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSidebarOpen(window.innerWidth >= 768);
   }, []);
 
@@ -152,10 +151,16 @@ export default function CoursePageClient({
             courseId: t.course_id as string,
             title: t.title as string,
             sourceDocumentIds: (t.source_document_ids as string[]) ?? [],
-            mcqCount: t.mcq_count as number,
-            frqCount: t.frq_count as number,
             purpose: t.purpose as TestPurpose,
             createdAt: t.created_at as string,
+            questionSets: ((t.question_sets as Array<Record<string, unknown>>) ?? []).map((qs) => ({
+              id: qs.id as string,
+              testId: qs.test_id as string,
+              setNumber: qs.set_number as number,
+              mcqCount: (qs.mcq_count as number) ?? 0,
+              frqCount: (qs.frq_count as number) ?? 0,
+              createdAt: qs.created_at as string,
+            })),
           })),
         ),
       )
@@ -480,12 +485,29 @@ export default function CoursePageClient({
           <div style={activeTab !== "test" ? { display: "none" } : { display: "contents" }}>
             <TestTab
               courseId={course.id}
-              courseTitle={course.title}
               selectedDocIds={selectedDocIds}
               sections={sections}
               tests={tests}
               onTestCreated={(test) => setTests((prev) => [test, ...prev])}
               onTestDeleted={(testId) => setTests((prev) => prev.filter((t) => t.id !== testId))}
+              onQuestionSetAdded={(testId, qs: QuestionSet) =>
+                setTests((prev) =>
+                  prev.map((t) =>
+                    t.id === testId
+                      ? { ...t, questionSets: [...t.questionSets, qs] }
+                      : t,
+                  ),
+                )
+              }
+              onQuestionSetDeleted={(testId, qsId) =>
+                setTests((prev) =>
+                  prev.map((t) =>
+                    t.id === testId
+                      ? { ...t, questionSets: t.questionSets.filter((qs) => qs.id !== qsId) }
+                      : t,
+                  ),
+                )
+              }
             />
           </div>
         </main>

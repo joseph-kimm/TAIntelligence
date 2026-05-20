@@ -171,9 +171,7 @@
   font-weight: 600;
   color: var(--on-surface);
   line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  word-break: break-word;
 }
 
 .historyItemDate {
@@ -543,6 +541,50 @@
   letter-spacing: 0.15em;
   font-weight: 700;
   color: color-mix(in srgb, var(--on-surface-variant) 40%, transparent);
+}
+
+/* ── Attempt select ─────────────────────────────────────── */
+
+.attemptSelect {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--on-surface);
+  background: var(--surface-container-low);
+  border: 1px solid color-mix(in srgb, var(--outline-variant) 40%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.625rem;
+  cursor: pointer;
+  max-width: 14rem;
+}
+
+/* ── Sidebar accordion ───────────────────────────────────── */
+
+.historyGroup {
+  display: flex;
+  flex-direction: column;
+}
+
+.historyGroupChildren {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding-left: 0.75rem;
+}
+
+.historySubItem {
+  display: flex;
+  align-items: flex-start;
+  border-radius: 0.5rem;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.historySubItem:hover { background: var(--surface-container-low); }
+
+.historySubItemActive {
+  background: var(--surface-container-low);
+  border-color: color-mix(in srgb, var(--primary) 20%, transparent);
 }
 
 /* ── Question viewer ────────────────────────────────────── */
