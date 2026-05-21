@@ -35,6 +35,19 @@ class DocumentOut(BaseModel):
     ingestionStatus: str = "complete"
 
 
+class ReserveDocumentIn(BaseModel):
+    """Request body for reserving a document slot before direct browser → R2 upload."""
+    section_id: str
+    title: str = Field(..., min_length=1, max_length=200)
+    content_type: str
+
+
+class ReserveDocumentOut(BaseModel):
+    """Response containing the placeholder document and the presigned R2 PUT URL."""
+    document: DocumentOut
+    upload_url: str
+
+
 class SectionOut(BaseModel):
     """A section with its documents nested inside."""
     id: str

@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Square, CheckSquare, Minus, Folder, FileText, MoreVertical, Plus, ChevronLeft, ChevronDown, X, Loader2, AlertCircle } from 'lucide-react'
 import styles from './CourseSidebar.module.css'
 import { renameSection, deleteSection, renameDocument, deleteDocument, moveDocument } from '@/lib/actions'
+import type { PendingUpload } from '@/app/(dashboard)/course/[id]/CoursePageClient'
 import type { Section } from '@/types'
 
 interface CourseSidebarProps {
   title: string
   sections: Section[]
+  pendingUploads?: Record<string, PendingUpload>
+  onRegisterProgress?: (docId: string, el: HTMLDivElement | null) => void
   selectedDocIds: Set<string>
   onSelectionChange: (ids: Set<string>) => void
   onAddDocument: () => void
@@ -22,6 +25,8 @@ type MenuTarget = { type: 'section' | 'document'; id: string }
 export default function CourseSidebar({
   title,
   sections,
+  pendingUploads = {},
+  onRegisterProgress,
   selectedDocIds,
   onSelectionChange,
   onAddDocument,
@@ -293,7 +298,12 @@ export default function CourseSidebar({
                                 onBlur={commitRename}
                               />
                             ) : (
-                              <span className={styles.documentTitle}>{doc.title}</span>
+                              <div className={styles.docLabelStack}>
+                                <span className={styles.documentTitle}>{doc.title}</span>
+                                {doc.ingestionStatus === 'pending' && (
+                                  <span className={styles.uploadStatusText}>Processing…</span>
+                                )}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -347,6 +357,26 @@ export default function CourseSidebar({
               </div>
             )
           })}
+          {Object.entries(pendingUploads).length > 0 && (
+            <div className={styles.uploadingSection}>
+              {Object.entries(pendingUploads).map(([docId, upload]) => (
+                <div key={docId} className={styles.uploadingRow}>
+                  <div className={styles.uploadingRowHeader}>
+                    <FileText size={14} />
+                    <span className={styles.documentTitle}>{upload.title}</span>
+                    <Loader2 size={14} className={styles.spinner} />
+                  </div>
+                  <div className={styles.uploadProgressTrack}>
+                    <div
+                      className={styles.uploadProgressFill}
+                      ref={(el) => onRegisterProgress?.(docId, el)}
+                    />
+                  </div>
+                  <span className={styles.uploadStatusText}>Uploading…</span>
+                </div>
+              ))}
+            </div>
+          )}
         </nav>
 
         <button className={styles.addButton} onClick={onAddDocument}>

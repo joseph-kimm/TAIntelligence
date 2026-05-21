@@ -11,14 +11,22 @@ import {
 } from "lucide-react";
 import styles from "./AddDocumentModal.module.css";
 import { createSection } from "@/lib/actions";
-import { uploadDocument } from "@/lib/uploads";
-import type { Section } from "@/types";
+import { reserveDocument, uploadWebsiteDocument } from "@/lib/uploads";
+import type { Document, Section } from "@/types";
+
+interface FileUploadPayload {
+  doc: Document;
+  sectionId: string;
+  file: File;
+  uploadUrl: string;
+}
 
 interface AddDocumentModalProps {
   courseId: string;
   sections: Section[];
   onClose: () => void;
   onSuccess: () => void;
+  onFileUploading: (payload: FileUploadPayload) => void;
 }
 
 export default function AddDocumentModal({
@@ -26,6 +34,7 @@ export default function AddDocumentModal({
   sections,
   onClose,
   onSuccess,
+  onFileUploading,
 }: AddDocumentModalProps) {
   const [name, setName] = useState("");
   const [sectionId, setSectionId] = useState(sections[0]?.id ?? "__new__");
@@ -81,21 +90,25 @@ export default function AddDocumentModal({
         targetSectionId = section.id;
       }
 
-      const formData = new FormData();
-      formData.append("section_id", targetSectionId);
-      formData.append("title", name.trim());
-
       if (uploadMode === "file" && selectedFile) {
-        formData.append("source_type", "file");
-        formData.append("file", selectedFile);
+        const { document, upload_url } = await reserveDocument({
+          section_id: targetSectionId,
+          title: name.trim(),
+          content_type: selectedFile.type,
+        });
+        // Hand off immediately — modal closes, upload runs in background
+        onFileUploading({ doc: document, sectionId: targetSectionId, file: selectedFile, uploadUrl: upload_url });
+        onClose();
       } else {
+        const formData = new FormData();
+        formData.append("section_id", targetSectionId);
+        formData.append("title", name.trim());
         formData.append("source_type", "website");
         formData.append("source_ref", url.trim());
+        await uploadWebsiteDocument(formData);
+        onSuccess();
+        onClose();
       }
-
-      await uploadDocument(formData);
-      onSuccess();
-      onClose();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Something went wrong. Please try again."
@@ -250,7 +263,6 @@ export default function AddDocumentModal({
             onChange={(e) => {
               const file = e.target.files?.[0];
               if (file) handleFileSelect(file);
-              // Reset so selecting the same file again fires onChange
               e.target.value = "";
             }}
           />
@@ -269,7 +281,7 @@ export default function AddDocumentModal({
             onClick={handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? "Uploading…" : "Add Document"}
+            {isSubmitting ? "Starting…" : "Add Document"}
           </button>
         </div>
       </div>

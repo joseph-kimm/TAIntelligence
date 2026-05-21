@@ -2,19 +2,20 @@ import asyncio
 import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Form, HTTPException, Request
 
-from core.r2 import delete_from_r2, upload_to_r2
+from core.r2 import delete_from_r2, fetch_from_r2, generate_presigned_put_url
 from db.documents import (
     create_document,
     delete_document,
     get_document,
     get_document_ingestion_status,
+    mark_document_ingestion_failed,
     move_document,
     rename_document,
     set_document_source_ref,
 )
-from schemas.courses import DocumentOut, MoveDocumentIn, RenameIn
+from schemas.courses import DocumentOut, MoveDocumentIn, RenameIn, ReserveDocumentIn, ReserveDocumentOut
 from services.ingestion import ingest_document
 
 logger = logging.getLogger(__name__)
@@ -25,23 +26,7 @@ ALLOWED_MIME_TYPES = {
     "text/plain",
 }
 
-MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50 MB
-
 router = APIRouter()
-
-
-async def _upload_and_ingest(pool, embed_model, doc_id, file_bytes, r2_key, mime_type, title):
-    """Run R2 upload and ingestion concurrently; a storage failure won't block ingestion."""
-    async def _r2():
-        try:
-            await asyncio.to_thread(upload_to_r2, file_bytes, r2_key, mime_type)
-        except Exception:
-            logger.exception("[%s] R2 upload failed — file may not be stored", title or doc_id)
-
-    await asyncio.gather(
-        _r2(),
-        ingest_document(pool, embed_model, doc_id, file_bytes, mime_type, title),
-    )
 
 
 def _validate_uuid(value: str, field: str) -> None:
@@ -51,74 +36,94 @@ def _validate_uuid(value: str, field: str) -> None:
         raise HTTPException(status_code=422, detail=f"Invalid {field}: must be a valid UUID.")
 
 
+@router.post("/documents/reserve", response_model=ReserveDocumentOut, status_code=201)
+async def reserve_document(body: ReserveDocumentIn, request: Request):
+    """
+    Step 1 of direct browser upload.
+    Creates a placeholder DB record (gets UUID from PostgreSQL), generates a presigned
+    R2 PUT URL using that UUID as the key, and returns both to the browser.
+    """
+    _validate_uuid(body.section_id, "section_id")
+    if body.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Unsupported file type '{body.content_type}'. Allowed: PDF, DOCX, TXT.",
+        )
+
+    row = await create_document(
+        request.app.state.pool,
+        body.section_id,
+        body.title.strip(),
+        "file",
+        None,
+    )
+    doc_id = row["id"]
+    r2_key = f"documents/{doc_id}"
+    await set_document_source_ref(request.app.state.pool, doc_id, r2_key)
+    row["source_ref"] = r2_key
+
+    upload_url = await asyncio.to_thread(generate_presigned_put_url, r2_key, body.content_type)
+    return ReserveDocumentOut(document=DocumentOut(**row), upload_url=upload_url)
+
+
+@router.post("/documents/{document_id}/ingest", status_code=202)
+async def trigger_ingest(document_id: str, request: Request):
+    """
+    Step 3 of direct browser upload (called after the browser has PUT the file to R2).
+    Reads the file from R2 server-to-server and fires ingestion as a detached asyncio
+    task that survives client disconnect.
+    """
+    _validate_uuid(document_id, "document_id")
+    doc = await get_document(request.app.state.pool, document_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if not doc.get("source_ref"):
+        raise HTTPException(status_code=409, detail="Document has no R2 key")
+
+    pool = request.app.state.pool
+    embed_model = request.app.state.embed_model
+    r2_key = doc["source_ref"]
+    doc_title = doc["title"]
+
+    async def _fetch_and_ingest():
+        try:
+            file_bytes, mime_type = await asyncio.to_thread(fetch_from_r2, r2_key)
+        except Exception:
+            logger.exception("[%s] Failed to fetch file from R2", document_id)
+            await mark_document_ingestion_failed(pool, document_id)
+            return
+        await ingest_document(pool, embed_model, document_id, file_bytes, mime_type, doc_title)
+
+    asyncio.create_task(_fetch_and_ingest())
+    return {"status": "ingestion_started"}
+
+
 @router.post("/documents", response_model=DocumentOut, status_code=201)
 async def add_document(
     request: Request,
-    background_tasks: BackgroundTasks,
     section_id: str = Form(...),
     title: str = Form(..., min_length=1, max_length=200),
     source_type: str = Form(...),
     source_ref: str | None = Form(None),
-    file: UploadFile | None = File(None),
 ):
     """
-    Create a document record. Accepts two source types:
-    - 'file': upload the file to R2; source_ref becomes the R2 object key.
-              Ingestion (chunking + embedding) runs as a background task.
-    - 'website': store the URL as-is; pass the URL in source_ref.
+    Create a website document (source_type='website').
+    File uploads use POST /documents/reserve + PUT to R2 + POST /documents/{id}/ingest instead.
     """
     _validate_uuid(section_id, "section_id")
 
-    if source_type not in ("file", "website"):
-        raise HTTPException(status_code=422, detail="source_type must be 'file' or 'website'")
+    if source_type != "website":
+        raise HTTPException(status_code=422, detail="This endpoint only accepts source_type='website'. Use /documents/reserve for file uploads.")
+    if not source_ref:
+        raise HTTPException(status_code=422, detail="source_ref (URL) is required for source_type='website'")
 
-    file_bytes: bytes | None = None
-
-    if source_type == "file":
-        if file is None:
-            raise HTTPException(status_code=422, detail="file is required for source_type='file'")
-        if file.content_type not in ALLOWED_MIME_TYPES:
-            raise HTTPException(
-                status_code=422,
-                detail=f"Unsupported file type '{file.content_type}'. Allowed: PDF, DOCX, TXT.",
-            )
-        file_bytes = await file.read()
-        if len(file_bytes) > MAX_UPLOAD_BYTES:
-            raise HTTPException(status_code=413, detail="File too large. Maximum size is 50 MB.")
-
-    elif source_type == "website":
-        if not source_ref:
-            raise HTTPException(status_code=422, detail="source_ref (URL) is required for source_type='website'")
-
-    # Insert DB record first so PostgreSQL generates the UUID.
     row = await create_document(
         request.app.state.pool,
         section_id,
         title.strip(),
         source_type,
-        source_ref,  # None for files until R2 upload completes
+        source_ref,
     )
-
-    if source_type == "file":
-        doc_id = row["id"]
-        r2_key = f"documents/{doc_id}"
-
-        # Set source_ref immediately — key is deterministic so we don't need to wait for R2.
-        await set_document_source_ref(request.app.state.pool, doc_id, r2_key)
-        row["source_ref"] = r2_key
-
-        mime_type = file.content_type
-        background_tasks.add_task(
-            _upload_and_ingest,
-            request.app.state.pool,
-            request.app.state.embed_model,
-            doc_id,
-            file_bytes,
-            r2_key,
-            mime_type,
-            title.strip(),
-        )
-
     return DocumentOut(**row)
 
 

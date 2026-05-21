@@ -7,7 +7,7 @@ async def create_pool(dsn: str) -> asyncpg.Pool:
     Called once at app startup via the FastAPI lifespan handler.
     min_size=1 keeps one connection warm so the first request isn't slow.
     """
-    return await asyncpg.create_pool(dsn, min_size=1, max_size=10)
+    return await asyncpg.create_pool(dsn, min_size=0, max_size=10)
 
 
 async def close_pool(pool: asyncpg.Pool) -> None:

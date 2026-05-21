@@ -9,7 +9,8 @@ import ChatTab from "@/components/chat/ChatTab";
 import SummarizeTab from "@/components/summarize/SummarizeTab";
 import TestTab from "@/components/test/TestTab";
 import AddDocumentModal from "@/components/modals/AddDocumentModal";
-import { createChat, deleteChat } from "@/lib/actions";
+import { createChat, deleteChat, deleteDocument } from "@/lib/actions";
+import { uploadToR2WithProgress, triggerIngestion } from "@/lib/uploads";
 import { parseSSEStream, toMessage } from "@/lib/streaming";
 import styles from "./page.module.css";
 import type {
@@ -23,6 +24,11 @@ import type {
   Test,
   TestPurpose,
 } from "@/types";
+
+export interface PendingUpload {
+  title: string;
+  sectionId: string;
+}
 
 interface CoursePageClientProps {
   course: Course;
@@ -48,6 +54,8 @@ export default function CoursePageClient({
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
+  const [pendingUploads, setPendingUploads] = useState<Record<string, PendingUpload>>({});
+  const uploadProgressRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useLayoutEffect(() => {
     setSidebarOpen(window.innerWidth >= 768);
@@ -65,44 +73,17 @@ export default function CoursePageClient({
     .map((d) => d.id)
     .join(",");
 
-  const pollStartTimesRef = useRef<Map<string, number>>(new Map());
-
   useEffect(() => {
     if (!pendingDocIds) return;
     const ids = pendingDocIds.split(",");
 
-    const now = Date.now();
-    ids.forEach((id) => {
-      if (!pollStartTimesRef.current.has(id)) {
-        pollStartTimesRef.current.set(id, now);
-      }
-    });
-
     const intervalId = setInterval(async () => {
       await Promise.all(
         ids.map(async (docId) => {
-          const elapsed =
-            Date.now() - (pollStartTimesRef.current.get(docId) ?? Date.now());
-          if (elapsed > 3 * 60 * 1000) {
-            pollStartTimesRef.current.delete(docId);
-            setSections((prev) =>
-              prev.map((s) => ({
-                ...s,
-                documents: s.documents.map((d) =>
-                  d.id === docId
-                    ? { ...d, ingestionStatus: "failed" as const }
-                    : d,
-                ),
-              })),
-            );
-            return;
-          }
-
           const res = await fetch(`/api/documents/${docId}/ingestion-status`);
           if (!res.ok) return;
           const { status } = await res.json();
           if (status === "complete" || status === "failed") {
-            pollStartTimesRef.current.delete(docId);
             setSections((prev) =>
               prev.map((s) => ({
                 ...s,
@@ -166,6 +147,62 @@ export default function CoursePageClient({
       )
       .catch(() => {});
   }, [course.id]);
+
+  function handleFileUploading({
+    doc,
+    sectionId,
+    file,
+    uploadUrl,
+  }: {
+    doc: Document;
+    sectionId: string;
+    file: File;
+    uploadUrl: string;
+  }) {
+    setPendingUploads((prev) => ({
+      ...prev,
+      [doc.id]: { title: doc.title, sectionId },
+    }));
+
+    uploadToR2WithProgress(uploadUrl, file, (percent) => {
+      const el = uploadProgressRefs.current[doc.id]
+      if (el) el.style.width = `${percent}%`
+    })
+      .then(() => triggerIngestion(doc.id))
+      .then(() => {
+        delete uploadProgressRefs.current[doc.id];
+        setPendingUploads((prev) => {
+          const next = { ...prev };
+          delete next[doc.id];
+          return next;
+        });
+        // Optimistically add to its section as pending so it appears immediately
+        // without waiting for router.refresh() to complete.
+        setSections((prev) =>
+          prev.map((s) =>
+            s.id === sectionId
+              ? {
+                  ...s,
+                  documents: [
+                    ...s.documents,
+                    { id: doc.id, title: doc.title, ingestionStatus: "pending" as const },
+                  ],
+                }
+              : s,
+          ),
+        );
+        router.refresh();
+      })
+      .catch(() => {
+        deleteDocument(doc.id).catch(() => {});
+        delete uploadProgressRefs.current[doc.id];
+        setPendingUploads((prev) => {
+          const next = { ...prev };
+          delete next[doc.id];
+          return next;
+        });
+      });
+  }
 
   function handleSummaryCreated(summary: Summary) {
     setSummaries((prev) => [summary, ...prev]);
@@ -440,6 +477,8 @@ export default function CoursePageClient({
         <CourseSidebar
           title={course.title}
           sections={sections}
+          pendingUploads={pendingUploads}
+          onRegisterProgress={(docId, el) => { uploadProgressRefs.current[docId] = el }}
           selectedDocIds={selectedDocIds}
           onSelectionChange={setSelectedDocIds}
           onAddDocument={() => setShowModal(true)}
@@ -519,6 +558,7 @@ export default function CoursePageClient({
           sections={sections}
           onClose={() => setShowModal(false)}
           onSuccess={() => router.refresh()}
+          onFileUploading={handleFileUploading}
         />
       )}
     </>
