@@ -10,7 +10,7 @@ import type { Question, QuestionSet, Section, Test, TestAttempt, TestAttemptDeta
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? 'http://localhost:8000'
 
-type ViewMode = 'form' | 'generating' | 'taking' | 'grading' | 'review' | 'past_attempt'
+type ViewMode = 'form' | 'generating' | 'taking' | 'grading' | 'review' | 'past_attempt' | 'regen_form'
 type DraftAnswer = { selectedOptionId?: string; responseText?: string }
 
 interface TestTabProps {
@@ -218,6 +218,8 @@ export default function TestTab({
   const [mcqCount, setMcqCount] = useState(10)
   const [frqCount, setFrqCount] = useState(3)
   const [purpose, setPurpose] = useState<TestPurpose>('quick_review')
+  const [regenMcqCount, setRegenMcqCount] = useState(10)
+  const [regenFrqCount, setRegenFrqCount] = useState(3)
 
   const isDirtyRef = useRef(false)
 
@@ -389,12 +391,20 @@ export default function TestTab({
     isDirtyRef.current = false
     setDraftAnswers({})
     setCurrentAttempt(null)
+    setActiveQuestions((prev) => prev ? applyShuffleToQuestions(prev) : prev)
     setViewMode('taking')
   }
 
-  async function handleRegenerate() {
-    if (!activeTest) return
+  function handleRegenerate() {
+    if (!activeTest || !activeQuestionSet) return
     if (!warnIfDirty()) return
+    setRegenMcqCount(activeQuestionSet.mcqCount)
+    setRegenFrqCount(activeQuestionSet.frqCount)
+    setViewMode('regen_form')
+  }
+
+  async function handleConfirmRegenerate() {
+    if (!activeTest) return
     isDirtyRef.current = false
     setViewMode('generating')
     setGenProgress('Starting regeneration…')
@@ -403,6 +413,8 @@ export default function TestTab({
     try {
       const res = await fetch(`${BACKEND_URL}/api/tests/${activeTest.id}/question-sets`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mcq_count: regenMcqCount, frq_count: regenFrqCount }),
       })
       if (!res.ok) throw new Error(`Regeneration failed (${res.status})`)
 
@@ -420,7 +432,7 @@ export default function TestTab({
       setViewMode('taking')
     } catch {
       setGenError('Regeneration failed. Please try again.')
-      setViewMode('review')
+      setViewMode('regen_form')
     } finally {
       setGenProgress(null)
     }
@@ -614,6 +626,53 @@ export default function TestTab({
                 onRetake={handleRetake}
                 onRegenerate={handleRegenerate}
               />
+            )}
+
+            {viewMode === 'regen_form' && (
+              <div className={styles.regenForm}>
+                <p className={styles.regenFormTitle}>Generate New Question Set</p>
+                <p className={styles.regenFormSub}>Adjust the number of questions for this set.</p>
+                <div className={styles.stepperControls}>
+                  <div className={styles.control}>
+                    <div className={styles.controlHeader}>
+                      <span className={styles.controlLabel}>MCQ Questions</span>
+                      <span className={styles.controlValue}>{regenMcqCount}</span>
+                    </div>
+                    <div className={styles.stepper}>
+                      <button className={styles.stepBtn} onClick={() => setRegenMcqCount((n) => Math.max(0, n - 1))}>−</button>
+                      <div className={styles.stepTrack}>
+                        <div className={styles.stepFill} style={{ width: `${(regenMcqCount / 20) * 100}%` }} />
+                      </div>
+                      <button className={styles.stepBtn} onClick={() => setRegenMcqCount((n) => Math.min(20, n + 1))}>+</button>
+                    </div>
+                  </div>
+                  <div className={styles.control}>
+                    <div className={styles.controlHeader}>
+                      <span className={styles.controlLabel}>FRQ Questions</span>
+                      <span className={styles.controlValue}>{regenFrqCount}</span>
+                    </div>
+                    <div className={styles.stepper}>
+                      <button className={styles.stepBtn} onClick={() => setRegenFrqCount((n) => Math.max(0, n - 1))}>−</button>
+                      <div className={styles.stepTrack}>
+                        <div className={styles.stepFill} style={{ width: `${(regenFrqCount / 10) * 100}%` }} />
+                      </div>
+                      <button className={styles.stepBtn} onClick={() => setRegenFrqCount((n) => Math.min(10, n + 1))}>+</button>
+                    </div>
+                  </div>
+                </div>
+                {genError && <p className={styles.genError}>{genError}</p>}
+                <div className={styles.regenFormActions}>
+                  <button className={styles.regenCancelBtn} onClick={() => setViewMode('review')}>Cancel</button>
+                  <button
+                    className={`${styles.generateBtn} ${regenMcqCount > 0 || regenFrqCount > 0 ? styles.generateBtnEnabled : ''}`}
+                    disabled={regenMcqCount === 0 && regenFrqCount === 0}
+                    onClick={handleConfirmRegenerate}
+                  >
+                    <Sparkles size={15} />
+                    Generate
+                  </button>
+                </div>
+              </div>
             )}
 
             {viewMode === 'taking' && !activeQuestions && (

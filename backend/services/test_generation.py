@@ -18,7 +18,8 @@ BATCH_SIZE = 40
 _PURPOSE_DESCRIPTIONS = {
     "quick_review": (
         "Purpose: QUICK REVIEW — focus on fundamental recall. "
-        "Questions should test definitions, key terms, and basic facts directly stated in the material."
+        "Questions should test key definitions and terms directly stated in the material."
+        "No need to test on very specific details in the material"
     ),
     "exam_prep": (
         "Purpose: EXAM PREP — mix recall with application. "
@@ -53,7 +54,8 @@ async def _extract_objectives_batch(
         f"{purpose_desc}"
     )
     user = (
-        "Extract as many distinct, testable learning objectives as you can find in the following course material.\n\n"
+        "Extract as many distinct, testable learning objectives as you can find in the following course material."
+        "The learning objectives should involve the bigger picture and not include specific examples given in the material.\n\n"
         "Return ONLY a JSON array of strings:\n"
         '["Explain the role of mitochondria in ATP production", "Compare aerobic and anaerobic respiration", ...]\n\n'
         f"Course material:\n\n{text}"

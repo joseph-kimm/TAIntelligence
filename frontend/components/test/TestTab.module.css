@@ -519,6 +519,53 @@
   text-align: right;
 }
 
+/* ── Regen form ─────────────────────────────────────────── */
+
+.regenForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 480px;
+}
+
+.regenFormTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+
+.regenFormSub {
+  font-size: 0.8rem;
+  color: var(--on-surface-variant);
+  margin-top: -1rem;
+}
+
+.regenFormActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.regenCancelBtn {
+  padding: 0.625rem 1.25rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--on-surface-variant);
+  background: var(--surface-container-highest);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.regenCancelBtn:hover {
+  background: color-mix(in srgb, var(--outline-variant) 30%, transparent);
+}
+
+.genError {
+  font-size: 0.72rem;
+  color: var(--error, #b91c1c);
+}
+
 /* ── Animations ─────────────────────────────────────────── */
 
 @keyframes spin {

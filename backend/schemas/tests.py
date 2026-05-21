@@ -32,6 +32,25 @@ class GenerateTestIn(BaseModel):
         return v.strip()
 
 
+class RegenerateIn(BaseModel):
+    mcq_count: int | None = None
+    frq_count: int | None = None
+
+    @field_validator("mcq_count")
+    @classmethod
+    def valid_mcq(cls, v: int | None) -> int | None:
+        if v is not None and not (0 <= v <= 20):
+            raise ValueError("mcq_count must be between 0 and 20")
+        return v
+
+    @field_validator("frq_count")
+    @classmethod
+    def valid_frq(cls, v: int | None) -> int | None:
+        if v is not None and not (0 <= v <= 10):
+            raise ValueError("frq_count must be between 0 and 10")
+        return v
+
+
 class RawAnswerIn(BaseModel):
     question_id: str
     selected_option_id: str | None = None

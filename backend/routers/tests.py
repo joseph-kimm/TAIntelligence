@@ -21,7 +21,7 @@ from db.tests import (
     list_attempts_by_question_set,
     list_tests_by_course,
 )
-from schemas.tests import GenerateTestIn, SubmitAttemptIn
+from schemas.tests import GenerateTestIn, RegenerateIn, SubmitAttemptIn
 from services.grading import run_grading
 from services.test_generation import run_test_generation
 
@@ -179,7 +179,7 @@ async def remove_test(test_id: str, request: Request):
 # ── Question sets ─────────────────────────────────────────────────────────────
 
 @router.post("/tests/{test_id}/question-sets")
-async def regenerate_question_set(test_id: str, request: Request):
+async def regenerate_question_set(test_id: str, request: Request, body: RegenerateIn = RegenerateIn()):
     _validate_uuid(test_id, "test_id")
 
     pool = request.app.state.pool
@@ -192,7 +192,9 @@ async def regenerate_question_set(test_id: str, request: Request):
     counts = await _fetch_latest_qs_counts(pool, test_id)
     if counts is None:
         raise HTTPException(status_code=404, detail="No question sets found for this test")
-    mcq_count, frq_count = counts
+    default_mcq, default_frq = counts
+    mcq_count = body.mcq_count if body.mcq_count is not None else default_mcq
+    frq_count = body.frq_count if body.frq_count is not None else default_frq
 
     all_objectives: list[str] = list(test.get("all_objectives") or [])
     already_tested = await get_tested_objectives(pool, test_id)

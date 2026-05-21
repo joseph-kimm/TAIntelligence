@@ -57,7 +57,7 @@ async def list_tests_by_course(pool: asyncpg.Pool, course_id: str) -> list[dict]
             SELECT id::text, test_id::text, set_number, mcq_count, frq_count, created_at
             FROM question_sets
             WHERE test_id = ANY($1::uuid[])
-            ORDER BY test_id, set_number DESC
+            ORDER BY test_id, set_number ASC
             """,
             test_ids,
         )
@@ -346,7 +346,7 @@ async def list_attempts_by_question_set(pool: asyncpg.Pool, question_set_id: str
             FROM test_attempts
             WHERE question_set_id = $1::uuid
               AND submitted_at IS NOT NULL
-            ORDER BY submitted_at DESC
+            ORDER BY submitted_at ASC
             """,
             question_set_id,
         )
