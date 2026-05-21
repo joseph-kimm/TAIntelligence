@@ -229,10 +229,7 @@ export default function AddDocumentModal({
                 >
                   <Upload size={18} /> Upload files
                 </button>
-                <button
-                  className={styles.uploadBtn}
-                  onClick={() => setUploadMode("url")}
-                >
+                <button className={styles.uploadBtn} disabled>
                   <Link size={18} /> Websites
                 </button>
                 <button className={styles.uploadBtn} disabled>

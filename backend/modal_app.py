@@ -33,14 +33,20 @@ image = (
     image=image,
     secrets=[modal.Secret.from_name("tai-secrets")],
     cpu=2,
-    memory=4096,
+    memory=2048,
     timeout=600,
     max_containers=1,
-    allow_concurrent_inputs=10,
     enable_memory_snapshot=True,
 )
+@modal.concurrent(max_inputs=10)
 @modal.asgi_app()
 def fastapi_app():
-    from main import app  # imported inside function so Modal serializes only what's needed
+    from main import app
+
+    # Force the embedding model into memory now so the snapshot captures it loaded.
+    # Without this, LlamaIndex initializes it lazily on the first request,
+    # meaning every cold-start restore still pays the weight-loading cost.
+    from llama_index.embeddings.huggingface import HuggingFaceEmbedding
+    HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
 
     return app
