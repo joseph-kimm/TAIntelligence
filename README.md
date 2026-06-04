@@ -2,12 +2,47 @@
 
 An AI-powered study platform for university courses. Upload lecture notes, textbooks, and slides organized by course, then interact with them through RAG-based chat, AI-generated summaries, and auto-graded practice tests.
 
-[Live Demo](https://tai-frontend.vercel.app/)
+[Live Demo](https://taintelligence.vercel.app/)
 
 ```
 TAIntelligence/
-├── frontend/     # Next.js web app (TypeScript)
-└── backend/      # FastAPI server (Python)
+├── frontend/
+│   ├── app/
+│   │   ├── (dashboard)/          # Course grid and per-course page (chat, summarize, test tabs)
+│   │   └── api/                  # Next.js route handlers (proxy to backend)
+│   ├── components/
+│   │   ├── chat/                 # ChatTab, MessageBubble, CitationPopover
+│   │   ├── layout/               # CourseSidebar, CourseTabBar
+│   │   ├── modals/               # CreateCourseModal, AddDocumentModal
+│   │   ├── summarize/            # SummarizeTab, SummaryOptionsPanel, NewSummaryPanel
+│   │   └── test/                 # TestTab, TestTaker, TestReview, QuestionViewer
+│   ├── lib/
+│   │   ├── api.ts                # apiFetch() wrapper + ApiError
+│   │   ├── streaming.ts          # SSE parser for chat responses
+│   │   ├── actions.ts            # Server actions (create/delete courses, chats, etc.)
+│   │   ├── queries.ts            # Data fetching helpers
+│   │   └── uploads.ts            # File upload helpers
+│   └── types/index.ts            # Shared TypeScript interfaces
+└── backend/
+    ├── main.py                   # FastAPI app + lifespan (DB pool, embed model)
+    ├── routers/                  # Route handlers — one file per domain
+    │   ├── chat.py               # Chat + message endpoints (SSE streaming)
+    │   ├── courses.py
+    │   ├── documents.py
+    │   ├── sections.py
+    │   ├── summaries.py
+    │   └── tests.py
+    ├── services/                 # Business logic
+    │   ├── llm.py                # OpenRouter calls, prompt construction
+    │   ├── ingestion.py          # PDF/DOCX/TXT parsing, chunking, embedding
+    │   ├── summarization.py      # Single-prompt + batch summarization paths
+    │   ├── test_generation.py    # Objective extraction + MCQ/FRQ generation
+    │   ├── grading.py            # AI grading for free-response questions
+    │   └── response_parser.py    # Citation validation and inline citation parsing
+    ├── db/                       # Raw SQL query functions — one file per domain
+    ├── schemas/                  # Pydantic request/response models
+    ├── core/                     # Config, DB connection pool, R2 client
+    └── sql/                      # Schema SQL files (run manually in Neon)
 ```
 
 ---
@@ -24,15 +59,15 @@ TAIntelligence/
 
 ## Tech Stack
 
-| Layer      | Technology                                              |
-| ---------- | ------------------------------------------------------- |
-| Frontend   | Next.js (App Router), TypeScript                        |
-| Backend    | FastAPI (Python)                                        |
-| Database   | PostgreSQL + pgvector (Neon)                            |
-| File Storage | Cloudflare R2                                         |
-| RAG        | LlamaIndex + BAAI/bge-small-en-v1.5 (384-dim embeddings) |
-| LLM        | OpenRouter API (OpenAI-compatible)                      |
-| Deployment | Vercel (frontend) + Modal (backend)                     |
+| Layer        | Technology                                               |
+| ------------ | -------------------------------------------------------- |
+| Frontend     | Next.js (App Router), TypeScript                         |
+| Backend      | FastAPI (Python)                                         |
+| Database     | PostgreSQL + pgvector (Neon)                             |
+| File Storage | Cloudflare R2                                            |
+| RAG          | LlamaIndex + BAAI/bge-small-en-v1.5 (384-dim embeddings) |
+| LLM          | OpenRouter API (OpenAI-compatible)                       |
+| Deployment   | Vercel (frontend) + Modal (backend)                      |
 
 ---
 
